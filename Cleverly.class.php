@@ -3,11 +3,19 @@ class Cleverly {
 	public $left_delimiter = '{';
 	public $right_delimiter = '}';
 	protected $subs = array();
+	protected $template_dir = '.';
 
 	public function display($template, $vars = array()) {
-		$handle = fopen($template, 'r');
+		if (substr($template, 0, 7) == 'string:') {
+			$handle = tmpfile();
+			fwrite($handle, substr($template, 7));
+			fseek($handle, 0);
+		} else {
+			$handle = fopen($template[0] == '/' ? $template : $this->template_dir . '/' . $template, 'r');
+		}
+
 		array_push($this->subs, $vars);
-		$pattern = '/' . preg_quote($this->left_delimiter, '/') . '(.*)' . preg_quote($this->right_delimiter, '/') . '/';
+		$pattern = '/' . preg_quote($this->left_delimiter, '/') . '(.*?)' . preg_quote($this->right_delimiter, '/') . '/';
 		$len = strlen($this->left_delimiter) + strlen($this->right_delimiter);
 
 		$state = array(
@@ -62,7 +70,7 @@ class Cleverly {
 						$val = $this->apply_subs($submatches[1], $submatches[2]);
 						$val();
 						return '';
-					} elseif (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+					} elseif (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
 						$this->display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
 						return '';
 					}
@@ -71,7 +79,7 @@ class Cleverly {
 				} elseif (substr($matches[1], 0, 12) == 'include_php ') {
 					$args = explode(' ', $matches[1]);
 
-					if (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+					if (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
 						include($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
 						return '';
 					}
@@ -101,6 +109,10 @@ class Cleverly {
 		ob_start();
 		$this->display($template);
 		return ob_get_clean();
+	}
+
+	public function setTemplateDir($dir) {
+		$this->template_dir = $dir;
 	}
 
 	private function apply_subs($str1, $str2 = '') {

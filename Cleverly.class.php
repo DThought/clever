@@ -17,7 +17,7 @@ class Cleverly {
 
 		while (($buffer = fgets($handle)) !== false) {
 			if ($state['literal']) {
-				if (($pos = strpos($buffer, $left_delimiter . '/literal' . $right_delimiter)) !== false) {
+				if (($pos = strpos($buffer, $this->left_delimiter . '/literal' . $this->right_delimiter)) !== false) {
 					echo substr($buffer, 0, $pos);
 					$buffer = substr($buffer, $pos + $len + 8);
 				} else {
@@ -25,7 +25,7 @@ class Cleverly {
 					continue;
 				}
 			} elseif ($state['php']) {
-				if (($pos = strpos($buffer, $left_delimiter . '/php' . $right_delimiter)) != false) {
+				if (($pos = strpos($buffer, $this->left_delimiter . '/php' . $this->right_delimiter)) != false) {
 					eval($php . substr($buffer, 0, $pos));
 					$buffer = substr($buffer, $pos + $len + 4);
 				} else {
@@ -52,9 +52,9 @@ class Cleverly {
 					$args = explode(' ', $matches[1]);
 
 					if (preg_match('/ name=(\w+) /', $matches[1] . ' ', $submatches)) {
-						foreach ($subs as $sub) {
-							if (isset($sub[$str])) {
-								$sub[$str]();
+						foreach ($this->subs as $sub) {
+							if (isset($sub[$submatches[1]])) {
+								$sub[$submatches[1]]();
 								return '';
 							}
 						}
@@ -78,7 +78,7 @@ class Cleverly {
 			}, $buffer);
 		}
 
-		array_pop($subs);
+		array_pop($this->subs);
 		fclose($handle);
 	}
 

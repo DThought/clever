@@ -42,8 +42,8 @@ class Cleverly {
 				} elseif (substr($matches[1], 0, 12) == 'include_php ') {
 					$args = explode(' ', $matches[1]);
 
-					if (preg_match('/ file=(\'(.+)\'|\$(\w+)) /', $matches[1] . ' ', $submatches)) {
-						include($submatches[2] ? $submatches[2] : apply_subs($submatches[3]));
+					if (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+						include($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
 						return '';
 					}
 
@@ -51,17 +51,12 @@ class Cleverly {
 				} elseif (substr($matches[1], 0, 8) == 'include ') {
 					$args = explode(' ', $matches[1]);
 
-					if (preg_match('/ name=(\w+) /', $matches[1] . ' ', $submatches)) {
-						foreach ($this->subs as $sub) {
-							if (isset($sub[$submatches[1]])) {
-								$sub[$submatches[1]]();
-								return '';
-							}
-						}
-
-						throw new OutOfBoundsException;
-					} elseif (preg_match('/ file=(\'(.+)\'|\$(\w+)) /', $matches[1] . ' ', $submatches)) {
-						display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3]));
+					if (preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)) {
+						$val = $this->apply_subs($submatches[1], $submatches[2]);
+						$val();
+						return '';
+					} elseif (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+						display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
 						return '';
 					}
 
@@ -70,8 +65,8 @@ class Cleverly {
 					$state[$matches[1]] = true;
 					$php = '';
 					return '';
-				} elseif (preg_match('/^\$(\w+)$/', $matches[1], $submatches)) {
-					return $this->apply_subs($submatches[1]);
+				} elseif (preg_match('/^\$(\w+)(.*?)$/', $matches[1], $submatches)) {
+					return $this->apply_subs($submatches[1], $submatches[2]);
 				} else {
 					throw new BadFunctionCallException;
 				}
@@ -88,10 +83,27 @@ class Cleverly {
 		return ob_get_clean();
 	}
 
-	private function apply_subs($str) {
+	private function apply_subs($str1, $str2 = '') {
 		foreach ($this->subs as $sub) {
-			if (isset($sub[$str])) {
-				return $sub[$str];
+			if (isset($sub[$str1])) {
+				$val = $sub[$str1];
+
+				while (preg_match('/\.(\w+)|\[(\w+)\]/', $str2, $matches)) {
+					$match = $matches[1] . $matches[2];
+
+					if (isset($val[$match])) {
+						$val = $val[$match];
+						$str2 = substr($str2, strlen($matches[0]));
+					} else {
+						throw new OutOfBoundsException;
+					}
+				}
+
+				if (strlen($str2)) {
+					throw new BadFunctionCallException;
+				} else {
+					return $val;
+				}
 			}
 		}
 

@@ -11,6 +11,7 @@ class Cleverly {
 		$len = strlen($this->left_delimiter) + strlen($this->right_delimiter);
 
 		$state = array(
+			'foreach' => false,
 			'literal' => false,
 			'php' => false
 		);
@@ -22,6 +23,21 @@ class Cleverly {
 					$buffer = substr($buffer, $pos + $len + 8);
 				} else {
 					echo $buffer;
+					continue;
+				}
+			} elseif ($state['foreach']) {
+				if (($pos = strpos($buffer, $this->left_delimiter . '/foreach' . $this->right_delimiter)) != false) {
+					$foreach .= substr($buffer, 0, $pos);
+
+					foreach ($foreach_loop as $val) {
+						$this->display('string:' . $foreach, array(
+							$foreach_name => $val
+						));
+					}
+
+					$buffer = substr($buffer, $pos + $len + 8);
+				} else {
+					$foreach .= $buffer;
 					continue;
 				}
 			} elseif ($state['php']) {
@@ -39,6 +55,19 @@ class Cleverly {
 					return $this->left_delimiter;
 				} elseif ($matches[1] == 'rdelim') {
 					return $this->right_delimiter;
+				} elseif (substr($matches[1], 0, 8) == 'include ') {
+					$args = explode(' ', $matches[1]);
+
+					if (preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)) {
+						$val = $this->apply_subs($submatches[1], $submatches[2]);
+						$val();
+						return '';
+					} elseif (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+						$this->display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
+						return '';
+					}
+
+					throw new BadFunctionCallException;
 				} elseif (substr($matches[1], 0, 12) == 'include_php ') {
 					$args = explode(' ', $matches[1]);
 
@@ -48,23 +77,14 @@ class Cleverly {
 					}
 
 					throw new BadFunctionCallException;
-				} elseif (substr($matches[1], 0, 8) == 'include ') {
-					$args = explode(' ', $matches[1]);
-
-					if (preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)) {
-						$val = $this->apply_subs($submatches[1], $submatches[2]);
-						$val();
-						return '';
-					} elseif (preg_match('/ file=(\'(.+)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
-						display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
-						return '';
-					}
-
-					throw new BadFunctionCallException;
 				} elseif (isset($state[$matches[1]])) {
 					$state[$matches[1]] = true;
 					$php = '';
 					return '';
+				} elseif (preg_match('/^foreach \$(\w+)(.*?) as \$(\w+)$/', $matches[1], $submatches)) {
+					$foreach = '';
+					$foreach_loop = apply_subs($submatches[1], $submatches[2]);
+					$foreach_name = $submatch[3];
 				} elseif (preg_match('/^\$(\w+)(.*?)$/', $matches[1], $submatches)) {
 					return $this->apply_subs($submatches[1], $submatches[2]);
 				} else {
@@ -79,7 +99,7 @@ class Cleverly {
 
 	public function fetch($template) {
 		ob_start();
-		display($template);
+		$this->display($template);
 		return ob_get_clean();
 	}
 

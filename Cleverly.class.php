@@ -105,9 +105,9 @@ class Cleverly {
 		fclose($handle);
 	}
 
-	public function fetch($template) {
+	public function fetch($template, $vars = array()) {
 		ob_start();
-		$this->display($template);
+		$this->display($template, $vars);
 		return ob_get_clean();
 	}
 

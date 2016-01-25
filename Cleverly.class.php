@@ -6,6 +6,9 @@ class Cleverly {
 	protected $template_dir = '.';
 
 	public function display($template, $vars = array()) {
+		global $php;
+		global $state;
+
 		if (substr($template, 0, 7) == 'string:') {
 			$handle = tmpfile();
 			fwrite($handle, substr($template, 7));
@@ -49,9 +52,10 @@ class Cleverly {
 					continue;
 				}
 			} elseif ($state['php']) {
-				if (($pos = strpos($buffer, $this->left_delimiter . '/php' . $this->right_delimiter)) != false) {
+				if (($pos = strpos($buffer, $this->left_delimiter . '/php' . $this->right_delimiter)) !== false) {
 					eval($php . substr($buffer, 0, $pos));
 					$buffer = substr($buffer, $pos + $len + 4);
+					$state['php'] = false;
 				} else {
 					$php .= $buffer;
 					continue;
@@ -59,29 +63,29 @@ class Cleverly {
 			}
 
 			echo preg_replace_callback($pattern, function($matches) {
+				global $php;
+				global $state;
+
 				if ($matches[1] == 'ldelim') {
 					return $this->left_delimiter;
 				} elseif ($matches[1] == 'rdelim') {
 					return $this->right_delimiter;
 				} elseif (substr($matches[1], 0, 8) == 'include ') {
-					$args = explode(' ', $matches[1]);
-
 					if (preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)) {
 						$val = $this->apply_subs($submatches[1], $submatches[2]);
+						ob_start();
 						$val();
-						return '';
+						return ob_get_clean();
 					} elseif (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
-						$this->display($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
-						return '';
+						return $this->fetch($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
 					}
 
 					throw new BadFunctionCallException;
 				} elseif (substr($matches[1], 0, 12) == 'include_php ') {
-					$args = explode(' ', $matches[1]);
-
 					if (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
-						include($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
-						return '';
+						ob_start();
+						include($this->template_dir . '/' . ($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4])));
+						return ob_get_clean();
 					}
 
 					throw new BadFunctionCallException;

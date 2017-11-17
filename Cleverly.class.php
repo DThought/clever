@@ -1,7 +1,9 @@
 <?
 class Cleverly {
   public $left_delimiter = '{';
+  public $preserve_indent = false;
   public $right_delimiter = '}';
+  protected $indent = array();
   protected $subs = array();
   protected $template_dir = '.';
 
@@ -14,11 +16,16 @@ class Cleverly {
       fwrite($handle, substr($template, 7));
       fseek($handle, 0);
     } else {
-      $handle = fopen($template[0] == '/' ? $template : $this->template_dir . '/' . $template, 'r');
+      $handle = fopen(
+        $template[0] == '/' ? $template : $this->template_dir . '/' . $template,
+        'r'
+      );
     }
 
     array_push($this->subs, $vars);
-    $pattern = '/' . preg_quote($this->left_delimiter, '/') . '(.*?)' . preg_quote($this->right_delimiter, '/') . '/';
+    $pattern =
+        '/' . preg_quote($this->left_delimiter, '/') . '(.*?)' .
+        preg_quote($this->right_delimiter, '/') . '/';
     $len = strlen($this->left_delimiter) + strlen($this->right_delimiter);
 
     $state = array(
@@ -27,9 +34,18 @@ class Cleverly {
       'php' => false
     );
 
-    while (($buffer = fgets($handle)) !== false) {
+    while ($buffer = fgets($handle)) {
+      if ($buffer[-1] != "\n") {
+        $buffer .= "\n";
+      }
+
       if ($state['literal']) {
-        if (($pos = strpos($buffer, $this->left_delimiter . '/literal' . $this->right_delimiter)) !== false) {
+        $pos = strpos(
+          $buffer,
+          $this->left_delimiter . '/literal' . $this->right_delimiter
+        );
+
+        if ($pos !== false) {
           echo substr($buffer, 0, $pos);
           $buffer = substr($buffer, $pos + $len + 8);
         } else {
@@ -37,7 +53,12 @@ class Cleverly {
           continue;
         }
       } elseif ($state['foreach']) {
-        if (($pos = strpos($buffer, $this->left_delimiter . '/foreach' . $this->right_delimiter)) != false) {
+        $pos = strpos(
+          $buffer,
+          $this->left_delimiter . '/foreach' . $this->right_delimiter
+        );
+
+        if ($pos != false) {
           $foreach .= substr($buffer, 0, $pos);
 
           foreach ($foreach_loop as $val) {
@@ -52,7 +73,12 @@ class Cleverly {
           continue;
         }
       } elseif ($state['php']) {
-        if (($pos = strpos($buffer, $this->left_delimiter . '/php' . $this->right_delimiter)) !== false) {
+        $pos = strpos(
+          $buffer,
+          $this->left_delimiter . '/php' . $this->right_delimiter
+        );
+
+        if ($pos !== false) {
           eval($php . substr($buffer, 0, $pos));
           $buffer = substr($buffer, $pos + $len + 4);
           $state['php'] = false;
@@ -62,7 +88,12 @@ class Cleverly {
         }
       }
 
-      echo preg_replace_callback($pattern, function($matches) {
+      if ($this->preserve_indent) {
+        preg_match('/^\s*/', $buffer, $matches);
+        array_push($this->indent, $matches[0]);
+      }
+
+      $buffer = preg_replace_callback($pattern, function($matches) {
         global $php;
         global $state;
 
@@ -71,21 +102,41 @@ class Cleverly {
         } elseif ($matches[1] == 'rdelim') {
           return $this->right_delimiter;
         } elseif (substr($matches[1], 0, 8) == 'include ') {
-          if (preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)) {
+          if (
+            preg_match('/ name=(\w+)(.*?) /', $matches[1] . ' ', $submatches)
+          ) {
             $val = $this->apply_subs($submatches[1], $submatches[2]);
             ob_start();
             $val();
-            return ob_get_clean();
-          } elseif (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
-            return $this->fetch($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4]));
+            return $this->strip_newline(ob_get_clean());
+          } elseif (preg_match(
+            '/ file=(\'(.+?)\'|\$(\w+)(.*?)) /',
+            $matches[1] . ' ',
+            $submatches
+          )) {
+            return $this->strip_newline($this->fetch(
+              $submatches[2]
+                ? $submatches[2]
+                : $this->apply_subs($submatches[3], $submatches[4])
+            ));
           }
 
           throw new BadFunctionCallException;
         } elseif (substr($matches[1], 0, 12) == 'include_php ') {
-          if (preg_match('/ file=(\'(.+?)\'|\$(\w+)(.*?)) /', $matches[1] . ' ', $submatches)) {
+          if (preg_match(
+            '/ file=(\'(.+?)\'|\$(\w+)(.*?)) /',
+            $matches[1] . ' ',
+            $submatches
+          )) {
             ob_start();
-            include($this->template_dir . '/' . ($submatches[2] ? $submatches[2] : $this->apply_subs($submatches[3], $submatches[4])));
-            return ob_get_clean();
+
+            include($this->template_dir . '/' . (
+              $submatches[2]
+                ? $submatches[2]
+                : $this->apply_subs($submatches[3], $submatches[4])
+            ));
+
+            return $this->strip_newline(ob_get_clean());
           }
 
           throw new BadFunctionCallException;
@@ -93,9 +144,13 @@ class Cleverly {
           $state[$matches[1]] = true;
           $php = '';
           return '';
-        } elseif (preg_match('/^foreach \$(\w+)(.*?) as \$(\w+)$/', $matches[1], $submatches)) {
+        } elseif (preg_match(
+          '/^foreach \$(\w+)(.*?) as \$(\w+)$/',
+          $matches[1],
+          $submatches
+        )) {
           $foreach = '';
-          $foreach_loop = apply_subs($submatches[1], $submatches[2]);
+          $foreach_loop = $this->apply_subs($submatches[1], $submatches[2]);
           $foreach_name = $submatch[3];
         } elseif (preg_match('/^\$(\w+)(.*?)$/', $matches[1], $submatches)) {
           return $this->apply_subs($submatches[1], $submatches[2]);
@@ -103,6 +158,18 @@ class Cleverly {
           throw new BadFunctionCallException;
         }
       }, $buffer);
+
+      echo $this->preserve_indent
+        ? str_replace(
+            "\n",
+            "\n" . implode($this->indent),
+            substr($buffer, 0, -1)
+          ) . "\n"
+        : $buffer;
+
+      if ($this->preserve_indent) {
+        array_pop($this->indent);
+      }
     }
 
     array_pop($this->subs);
@@ -119,23 +186,23 @@ class Cleverly {
     $this->template_dir = $dir;
   }
 
-  private function apply_subs($str1, $str2 = '') {
+  private function apply_subs($var, $part = '') {
     foreach ($this->subs as $sub) {
-      if (isset($sub[$str1])) {
-        $val = $sub[$str1];
+      if (isset($sub[$var])) {
+        $val = $sub[$var];
 
-        while (preg_match('/\.(\w+)|\[(\w+)\]/', $str2, $matches)) {
+        while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $matches)) {
           $match = $matches[1] . $matches[2];
 
           if (isset($val[$match])) {
             $val = $val[$match];
-            $str2 = substr($str2, strlen($matches[0]));
+            $part = substr($part, strlen($matches[0]));
           } else {
             throw new OutOfBoundsException;
           }
         }
 
-        if (strlen($str2)) {
+        if (strlen($part)) {
           throw new BadFunctionCallException;
         } else {
           return $val;
@@ -144,6 +211,10 @@ class Cleverly {
     }
 
     throw new OutOfBoundsException;
+  }
+
+  private function strip_newline($str) {
+    return $str && $str[-1] == "\n" ? substr($str, 0, -1) : $str;
   }
 }
 ?>

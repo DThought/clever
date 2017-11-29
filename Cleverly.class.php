@@ -1,6 +1,7 @@
 <?
 class Cleverly {
   const PATTERN_FILE = '/^(\'(.+?)\'|\$(\w+)(.*?))$/';
+  const PATTERN_FUNCTION = '/^(\w+)((\s+(\w+)=\S+)*)$/';
   const PATTERN_VAR = '/^\$(\w+)(.*?)$/';
 
   public $leftDelimiter = '{';
@@ -29,9 +30,8 @@ class Cleverly {
     }
 
     array_push($this->subs, $vars);
-    $pattern_function =
-        '/' . preg_quote($this->leftDelimiter, '/') .
-        '(\w+)((\s+(\w+)=\S+)*)' .
+    $pattern =
+        '/' . preg_quote($this->leftDelimiter, '/') . '(.*?)' .
         preg_quote($this->rightDelimiter, '/') . '/';
     $len = strlen($this->leftDelimiter) + strlen($this->rightDelimiter);
 
@@ -100,78 +100,86 @@ class Cleverly {
         array_push($this->indent, $matches[0]);
       }
 
-      $buffer = preg_replace_callback($pattern_function, function($matches) {
-        $args = call_user_func_array('array_merge', array_map(function($arg) {
-          $parts = explode('=', $arg, 2);
-          return array(
-            $parts[0] => $parts[1]
+      $buffer = preg_replace_callback($pattern, function($supermatches) {
+        if (preg_match(self::PATTERN_FUNCTION, $supermatches[1], $matches)) {
+          $args = array_reduce(
+            array_map(function($arg) {
+              $parts = explode('=', $arg, 2);
+              return array(
+                $parts[0] => $parts[1]
+              );
+            }, preg_split('/\s+/', $matches[2], NULL, PREG_SPLIT_NO_EMPTY)),
+            'array_merge', array()
           );
-        }, preg_split('/\s+/', $matches[2], NULL, PREG_SPLIT_NO_EMPTY)));
 
-        switch ($matches[1]) {
-          case 'foreach':
-            if (
-              preg_match(self::PATTERN_FILE, @$args['from'], $submatches) and
-                  preg_match('/^\w+$/', @$args['item'])
-            ) {
-              $foreach = '';
-              $foreach_loop = $this->applySubs($submatches[1], $submatches[2]);
-              $foreach_name = $args['item'];
-              return '';
-            } else {
-              throw new BadFunctionCallException;
-            }
-          case 'include':
-            if (preg_match(self::PATTERN_VAR, @$args['from'], $submatches)) {
-              $val = $this->applySubs($submatches[1], $submatches[2]);
-              ob_start();
-              $val();
-              return self::stripNewline(ob_get_clean());
-            } elseif (preg_match(
-              self::PATTERN_FILE,
-              @$args['file'],
-              $submatches
-            )) {
-              return self::stripNewline($this->fetch(
-                $submatches[2]
-                  ? $submatches[2]
-                  : $this->applySubs($submatches[3], $submatches[4])
-              ));
-            } else {
-              throw new BadFunctionCallException;
-            }
-          case 'include_php':
-            if (preg_match(
-              self::PATTERN_FILE,
-              @$args['file'],
-              $submatches
-            )) {
-              ob_start();
+          switch ($matches[1]) {
+            case 'foreach':
+              if (
+                preg_match(self::PATTERN_FILE, @$args['from'], $submatches) and
+                    preg_match('/^\w+$/', @$args['item'])
+              ) {
+                $foreach = '';
+                $foreach_loop =
+                    $this->applySubs($submatches[1], $submatches[2]);
+                $foreach_name = $args['item'];
+                return '';
+              } else {
+                throw new BadFunctionCallException;
+              }
+            case 'include':
+              if (preg_match(self::PATTERN_VAR, @$args['from'], $submatches)) {
+                $val = $this->applySubs($submatches[1], $submatches[2]);
+                ob_start();
+                $val();
+                return self::stripNewline(ob_get_clean());
+              } elseif (preg_match(
+                self::PATTERN_FILE,
+                @$args['file'],
+                $submatches
+              )) {
+                return self::stripNewline($this->fetch(
+                  $submatches[2]
+                    ? $submatches[2]
+                    : $this->applySubs($submatches[3], $submatches[4])
+                ));
+              } else {
+                throw new BadFunctionCallException;
+              }
+            case 'include_php':
+              if (preg_match(
+                self::PATTERN_FILE,
+                @$args['file'],
+                $submatches
+              )) {
+                ob_start();
 
-              include($this->templateDir . '/' . (
-                $submatches[2]
-                  ? $submatches[2]
-                  : $this->applySubs($submatches[3], $submatches[4])
-              ));
+                include($this->templateDir . '/' . (
+                  $submatches[2]
+                    ? $submatches[2]
+                    : $this->applySubs($submatches[3], $submatches[4])
+                ));
 
-              return self::stripNewline(ob_get_clean());
-            } else {
-              throw new BadFunctionCallException;
-            }
-          case 'ldelim':
-            return $this->leftDelimiter;
-          case 'rdelim':
-            return $this->rightDelimiter;
-          default:
-            if (isset($this->state[$matches[1]])) {
-              $this->state[$matches[1]] = true;
-              $this->php = '';
-              return '';
-            } elseif (preg_match(self::PATTERN_VAR, $matches[1], $submatches)) {
-              return $this->applySubs($submatches[1], $submatches[2]);
-            } else {
-              throw new BadFunctionCallException;
-            }
+                return self::stripNewline(ob_get_clean());
+              } else {
+                throw new BadFunctionCallException;
+              }
+            case 'ldelim':
+              return $this->leftDelimiter;
+            case 'rdelim':
+              return $this->rightDelimiter;
+            default:
+              if (isset($this->state[$matches[1]])) {
+                $this->state[$matches[1]] = true;
+                $this->php = '';
+                return '';
+              } else {
+                throw new BadFunctionCallException;
+              }
+          }
+        } elseif (preg_match(self::PATTERN_VAR, $supermatches[1], $matches)) {
+          return $this->applySubs($matches[1], $matches[2]);
+        } else {
+          throw new BadFunctionCallException;
         }
       }, $buffer);
 

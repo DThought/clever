@@ -50,6 +50,11 @@ class Cleverly {
         $line .= "\n";
       }
 
+      if ($this->preserveIndent) {
+        preg_match('/^\s*/', $line, $matches);
+        array_push($this->indent, $matches[0]);
+      }
+
       preg_match_all(
         $pattern,
         $line,
@@ -75,7 +80,7 @@ class Cleverly {
 
             if (!$this->state['foreach']) {
               eval($buffer);
-              $buffer = '';
+              $buffer = implode('', $this->indent);
             }
           } else {
             $buffer .= $set[0][0];
@@ -93,7 +98,7 @@ class Cleverly {
                 ));
               }
 
-              $buffer = '';
+              $buffer = implode('', $this->indent);
             }
           } else {
             switch ($set[self::OFFSET_OPEN_TAG][0]) {
@@ -144,8 +149,8 @@ class Cleverly {
                 $foreach_from = $this->applySubs($var[1], $var[2]);
                 $foreach_item = $args['item'];
                 $this->state['foreach'] = 1;
-                echo $buffer;
-                $buffer = '';
+                echo $this->addIndent($buffer);
+                $buffer = implode('', $this->indent);
               } else {
                 throw new BadFunctionCallException;
               }
@@ -203,8 +208,8 @@ class Cleverly {
                 array_key_exists($set[self::OFFSET_OPEN_TAG][0], $this->state)
               ) {
                 $this->state[$set[self::OFFSET_OPEN_TAG][0]] = true;
-                echo $buffer;
-                $buffer = '';
+                echo $this->addIndent($buffer);
+                $buffer = implode('', $this->indent);
               } else {
                 throw new BadFunctionCallException;
               }
@@ -227,9 +232,13 @@ class Cleverly {
       } else {
         $buffer .= $line;
       }
+
+      if ($this->preserveIndent) {
+        array_pop($this->indent);
+      }
     }
 
-    echo $buffer;
+    echo $this->addIndent($buffer);
     array_pop($this->subs);
     fclose($handle);
   }
@@ -242,6 +251,14 @@ class Cleverly {
 
   public function setTemplateDir($dir) {
     $this->templateDir = $dir;
+  }
+
+  private function addIndent($str) {
+    return str_replace(
+      "\n",
+      "\n" . implode($this->indent),
+      substr($str, 0, -1)
+    ) . "\n";
   }
 
   private function applySubs($var, $part = '') {

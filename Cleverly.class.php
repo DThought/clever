@@ -69,13 +69,13 @@ class Cleverly {
         $offset = $set[0][1] + strlen($set[0][0]);
 
         if ($this->state['literal']) {
-          if ($set[self::OFFSET_CLOSE_TAG][0] == 'literal') {
+          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'literal') {
             $this->state['literal'] = false;
           } else {
             $buffer .= $set[0][0];
           }
         } elseif ($this->state['php']) {
-          if ($set[self::OFFSET_CLOSE_TAG][0] == 'php') {
+          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'php') {
             $this->state['literal'] = false;
 
             if (!$this->state['foreach']) {
@@ -86,7 +86,7 @@ class Cleverly {
             $buffer .= $set[0][0];
           }
         } elseif ($this->state['foreach']) {
-          if ($set[self::OFFSET_CLOSE_TAG][0] == 'foreach') {
+          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'foreach') {
             $this->state['foreach']--;
 
             if ($this->state['foreach']) {
@@ -101,7 +101,7 @@ class Cleverly {
               $buffer = implode('', $this->indent);
             }
           } else {
-            switch ($set[self::OFFSET_OPEN_TAG][0]) {
+            switch (@$set[self::OFFSET_OPEN_TAG][0]) {
               case 'literal':
               case 'php':
                 $this->state[$set[self::OFFSET_OPEN_TAG][0]] == true;
@@ -111,10 +111,10 @@ class Cleverly {
                 break;
             }
 
-            switch ($set[self::OFFSET_CLOSE_TAG][0]) {
+            switch (@$set[self::OFFSET_CLOSE_TAG][0]) {
               case 'literal':
               case 'php':
-                $this->state[$set[self::OFFSET_OPEN_TAG][0]] == false;
+                $this->state[$set[self::OFFSET_CLOSE_TAG][0]] == false;
                 break;
             }
 
@@ -125,6 +125,7 @@ class Cleverly {
             array_map(
               function($arg) {
                 $parts = explode('=', $arg, 2);
+
                 return array(
                   $parts[0] => $parts[1]
                 );
@@ -168,9 +169,10 @@ class Cleverly {
                 $submatches
               )) {
                 $buffer .= self::stripNewline($this->fetch(
-                  $submatches[2]
-                    ? $submatches[2]
-                    : $this->applySubs($submatches[3], $submatches[4])
+                  $submatches[2] ?: $this->applySubs(
+                    $submatches[3],
+                    $submatches[4]
+                  )
                 ));
               } else {
                 throw new BadFunctionCallException;
@@ -185,10 +187,9 @@ class Cleverly {
               )) {
                 ob_start();
 
-                include($this->templateDir . '/' . (
-                  $submatches[2]
-                    ? $submatches[2]
-                    : $this->applySubs($submatches[3], $submatches[4])
+                include($submatches[2] ?: $this->applySubs(
+                  $submatches[3],
+                  $submatches[4]
                 ));
 
                 $buffer .= self::stripNewline(ob_get_clean());

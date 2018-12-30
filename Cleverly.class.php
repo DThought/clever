@@ -8,6 +8,9 @@ class Cleverly {
   const PATTERN_FILE = '/^(\'(.+?)\'|\$(\w+)(.*?))$/';
   const PATTERN_VAR = '/^\$(\w+)(.*?)$/';
   const SUBPATTERN = '((\w+)((\s+(\w+)=\S+?)*)|\/(\w+)|\$(\w+)(.*?))';
+  const TAG_FOREACH = 'foreach';
+  const TAG_LITERAL = 'literal';
+  const TAG_PHP = 'php';
 
   public $leftDelimiter = '{';
   public $preserveIndent = false;
@@ -33,12 +36,7 @@ class Cleverly {
       );
     }
 
-    $this->state = array(
-      'foreach' => 0,
-      'literal' => false,
-      'php' => false
-    );
-
+    $this->state = array();
     array_push($this->subs, $vars);
     $pattern =
         '/' . preg_quote($this->leftDelimiter, '/') . self::SUBPATTERN .
@@ -68,162 +66,168 @@ class Cleverly {
         $buffer .= substr($line, $offset, $set[0][1] - $offset);
         $offset = $set[0][1] + strlen($set[0][0]);
 
-        if ($this->state['literal']) {
-          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'literal') {
-            $this->state['literal'] = false;
-          } else {
-            $buffer .= $set[0][0];
-          }
-        } elseif ($this->state['php']) {
-          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'php') {
-            $this->state['literal'] = false;
+        switch (@$this->state[count($this->state) - 1]) {
+          case self::TAG_FOREACH:
+            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_FOREACH) {
+              array_pop($this->state);
 
-            if (!$this->state['foreach']) {
-              eval($buffer);
-              $buffer = implode('', $this->indent);
-            }
-          } else {
-            $buffer .= $set[0][0];
-          }
-        } elseif ($this->state['foreach']) {
-          if (@$set[self::OFFSET_CLOSE_TAG][0] == 'foreach') {
-            $this->state['foreach']--;
+              if (count($this->state)) {
+                $buffer .= $set[0][0];
+              } else {
+                foreach ($foreach_from as $val) {
+                  $this->display('string:' . $buffer, array(
+                    $foreach_item => $val
+                  ));
+                }
 
-            if ($this->state['foreach']) {
-              $buffer .= $set[0][0];
+                $buffer = implode('', $this->indent);
+              }
             } else {
-              foreach ($foreach_from as $val) {
-                $this->display('string:' . $buffer, array(
-                  $foreach_item => $val
-                ));
+              switch (@$set[self::OFFSET_OPEN_TAG][0]) {
+                case self::TAG_FOREACH:
+                case self::TAG_LITERAL:
+                case self::TAG_PHP:
+                  array_push($this->state, $set[self::OFFSET_OPEN_TAG][0]);
+                  break;
               }
 
-              $buffer = implode('', $this->indent);
-            }
-          } else {
-            switch (@$set[self::OFFSET_OPEN_TAG][0]) {
-              case 'literal':
-              case 'php':
-                $this->state[$set[self::OFFSET_OPEN_TAG][0]] == true;
-                break;
-              case 'foreach':
-                $this->state['foreach']++;
-                break;
+              $buffer .= $set[0][0];
             }
 
-            switch (@$set[self::OFFSET_CLOSE_TAG][0]) {
-              case 'literal':
-              case 'php':
-                $this->state[$set[self::OFFSET_CLOSE_TAG][0]] == false;
-                break;
+            break;
+          case self::TAG_LITERAL:
+            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_LITERAL) {
+              array_pop($this->state);
+            } else {
+              $buffer .= $set[0][0];
             }
 
-            $buffer .= $set[0][0];
-          }
-        } elseif ($set[self::OFFSET_OPEN_TAG][0]) {
-          $args = array_reduce(
-            array_map(
-              function($arg) {
-                $parts = explode('=', $arg, 2);
+            break;
+          case self::TAG_PHP:
+            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_PHP) {
+              array_pop($this->state);
 
-                return array(
-                  $parts[0] => $parts[1]
-                );
-              },
-              preg_split(
-                '/\s+/',
-                $set[self::OFFSET_OPEN_ARGS][0],
-                NULL,
-                PREG_SPLIT_NO_EMPTY
-              )
-            ),
-            'array_merge',
-            array()
-          );
-
-          switch ($set[self::OFFSET_OPEN_TAG][0]) {
-            case 'foreach':
-              if (
-                preg_match(self::PATTERN_VAR, @$args['from'], $var) and
-                    preg_match('/^\w+$/', @$args['item'])
-              ) {
-                $foreach_from = $this->applySubs($var[1], $var[2]);
-                $foreach_item = $args['item'];
-                $this->state['foreach'] = 1;
-                echo $this->addIndent($buffer);
+              if (!count($this->state)) {
+                eval($buffer);
                 $buffer = implode('', $this->indent);
-              } else {
-                throw new BadFunctionCallException;
               }
+            } else {
+              $buffer .= $set[0][0];
+            }
 
-              break;
-            case 'include':
-              if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
-                $val = $this->applySubs($var[1], $var[2]);
-                ob_start();
-                $val();
-                $buffer .= self::stripNewline(ob_get_clean());
-              } elseif (preg_match(
-                self::PATTERN_FILE,
-                @$args['file'],
-                $submatches
-              )) {
-                $buffer .= self::stripNewline($this->fetch(
-                  $submatches[2] ?: $this->applySubs(
-                    $submatches[3],
-                    $submatches[4]
+            break;
+          default:
+            $open_tag = $set[self::OFFSET_OPEN_TAG][0];
+
+            if ($open_tag) {
+              $args = array_reduce(
+                array_map(
+                  function($arg) {
+                    $parts = explode('=', $arg, 2);
+
+                    return array(
+                      $parts[0] => $parts[1]
+                    );
+                  },
+                  preg_split(
+                    '/\s+/',
+                    $set[self::OFFSET_OPEN_ARGS][0],
+                    NULL,
+                    PREG_SPLIT_NO_EMPTY
                   )
-                ));
-              } else {
-                throw new BadFunctionCallException;
+                ),
+                'array_merge',
+                array()
+              );
+
+              switch ($open_tag) {
+                case self::TAG_FOREACH:
+                  if (!preg_match('/^\w+$/', @$args['item'])) {
+                    throw new BadFunctionCallException;
+                  }
+
+                  $foreach_item = $args['item'];
+
+                  if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
+                    $foreach_from = $this->applySubs($var[1], $var[2]);
+                  } elseif (
+                    preg_match('/^\d+$/', @$args['loop'], $var)
+                  ) {
+                    $foreach_from = range(0, $args['loop'] - 1);
+                  } else {
+                    throw new BadFunctionCallException;
+                  }
+
+                  array_push($this->state, self::TAG_FOREACH);
+                  echo $this->addIndent($buffer);
+                  $buffer = implode('', $this->indent);
+                  break;
+                case 'include':
+                  if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
+                    $val = $this->applySubs($var[1], $var[2]);
+                    ob_start();
+                    $val();
+                    $buffer .= self::stripNewline(ob_get_clean());
+                  } elseif (preg_match(
+                    self::PATTERN_FILE,
+                    @$args['file'],
+                    $submatches
+                  )) {
+                    $buffer .= self::stripNewline($this->fetch(
+                      $submatches[2] ?: $this->applySubs(
+                        $submatches[3],
+                        $submatches[4]
+                      )
+                    ));
+                  } else {
+                    throw new BadFunctionCallException;
+                  }
+
+                  break;
+                case 'include_php':
+                  if (preg_match(
+                    self::PATTERN_FILE,
+                    @$args['file'],
+                    $submatches
+                  )) {
+                    ob_start();
+
+                    include($submatches[2] ?: $this->applySubs(
+                      $submatches[3],
+                      $submatches[4]
+                    ));
+
+                    $buffer .= self::stripNewline(ob_get_clean());
+                  } else {
+                    throw new BadFunctionCallException;
+                  }
+
+                  break;
+                case 'ldelim':
+                  $buffer .= $this->leftDelimiter;
+                  break;
+                case self::TAG_LITERAL:
+                case self::TAG_PHP:
+                  array_push($this->state, $open_tag);
+                  echo $this->addIndent($buffer);
+                  $buffer = implode('', $this->indent);
+                  break;
+                case 'rdelim':
+                  $buffer .= $this->rightDelimiter;
+                  break;
+                default:
+                  throw new BadFunctionCallException;
               }
+            } elseif ($set[self::OFFSET_VAR_NAME][0]) {
+              $buffer .= $this->applySubs(
+                $set[self::OFFSET_VAR_NAME][0],
+                $set[self::OFFSET_VAR_EXTRA][0]
+              );
+            } else {
+              throw new BadFunctionCallException;
+            }
 
-              break;
-            case 'include_php':
-              if (preg_match(
-                self::PATTERN_FILE,
-                @$args['file'],
-                $submatches
-              )) {
-                ob_start();
-
-                include($submatches[2] ?: $this->applySubs(
-                  $submatches[3],
-                  $submatches[4]
-                ));
-
-                $buffer .= self::stripNewline(ob_get_clean());
-              } else {
-                throw new BadFunctionCallException;
-              }
-
-              break;
-            case 'ldelim':
-              $buffer .= $this->leftDelimiter;
-              break;
-            case 'rdelim':
-              $buffer .= $this->rightDelimiter;
-              break;
-            default:
-              if (
-                array_key_exists($set[self::OFFSET_OPEN_TAG][0], $this->state)
-              ) {
-                $this->state[$set[self::OFFSET_OPEN_TAG][0]] = true;
-                echo $this->addIndent($buffer);
-                $buffer = implode('', $this->indent);
-              } else {
-                throw new BadFunctionCallException;
-              }
-
-              break;
-          }
-        } elseif ($set[self::OFFSET_VAR_NAME][0]) {
-          $buffer .= $this->applySubs(
-            $set[self::OFFSET_VAR_NAME][0],
-            $set[self::OFFSET_VAR_EXTRA][0]
-          );
-        } else {
-          throw new BadFunctionCallException;
+            break;
         }
       }
 

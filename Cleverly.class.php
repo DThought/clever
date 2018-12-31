@@ -153,7 +153,9 @@ class Cleverly {
                   }
 
                   if (preg_match('/^\w+$/', @$args['item'])) {
-                    $foreach_item = $args['item']
+                    $foreach_item = $args['item'];
+                  } else {
+                    $foreach_item = '';
                   }
 
                   array_push($this->state, self::TAG_FOREACH);

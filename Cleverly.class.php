@@ -142,12 +142,6 @@ class Cleverly {
 
               switch ($open_tag) {
                 case self::TAG_FOREACH:
-                  if (!preg_match('/^\w+$/', @$args['item'])) {
-                    throw new BadFunctionCallException;
-                  }
-
-                  $foreach_item = $args['item'];
-
                   if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
                     $foreach_from = $this->applySubs($var[1], $var[2]);
                   } elseif (
@@ -156,6 +150,10 @@ class Cleverly {
                     $foreach_from = range(0, $args['loop'] - 1);
                   } else {
                     throw new BadFunctionCallException;
+                  }
+
+                  if (preg_match('/^\w+$/', @$args['item'])) {
+                    $foreach_item = $args['item']
                   }
 
                   array_push($this->state, self::TAG_FOREACH);

@@ -42,6 +42,7 @@ class Cleverly {
         '/' . preg_quote($this->leftDelimiter, '/') . self::SUBPATTERN .
         preg_quote($this->rightDelimiter, '/') . '/';
     $buffer = '';
+    $indent = '';
 
     while ($line = fgets($handle)) {
       if ($line[-1] != "\n") {
@@ -50,7 +51,7 @@ class Cleverly {
 
       if ($this->preserveIndent) {
         preg_match('/^\s*/', $line, $matches);
-        array_push($this->indent, $matches[0]);
+        $indent = $matches[0];
       }
 
       preg_match_all(
@@ -80,7 +81,7 @@ class Cleverly {
                   ));
                 }
 
-                $buffer = implode('', $this->indent);
+                $buffer = $this->getLastIndent() . $indent;
               }
             } else {
               switch (@$set[self::OFFSET_OPEN_TAG][0]) {
@@ -109,7 +110,7 @@ class Cleverly {
 
               if (!count($this->state)) {
                 eval($buffer);
-                $buffer = implode('', $this->indent);
+                $buffer = $this->getLastIndent() . $indent;
               }
             } else {
               $buffer .= $set[0][0];
@@ -159,8 +160,10 @@ class Cleverly {
                   }
 
                   array_push($this->state, self::TAG_FOREACH);
-                  echo $this->addIndent($buffer);
-                  $buffer = implode('', $this->indent);
+                  array_push($this->indent, $this->getLastIndent() . $indent);
+                  echo $this->applyIndent($buffer);
+                  $buffer = $this->getLastIndent();
+                  array_pop($this->indent);
                   break;
                 case 'include':
                   if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
@@ -173,12 +176,16 @@ class Cleverly {
                     @$args['file'],
                     $submatches
                   )) {
+                    array_push($this->indent, $indent);
+
                     $buffer .= self::stripNewline($this->fetch(
                       $submatches[2] ?: $this->applySubs(
                         $submatches[3],
                         $submatches[4]
                       )
                     ));
+
+                    array_pop($this->indent);
                   } else {
                     throw new BadFunctionCallException;
                   }
@@ -209,8 +216,10 @@ class Cleverly {
                 case self::TAG_LITERAL:
                 case self::TAG_PHP:
                   array_push($this->state, $open_tag);
-                  echo $this->addIndent($buffer);
-                  $buffer = implode('', $this->indent);
+                  array_push($this->indent, $indent);
+                  echo $this->applyIndent($buffer);
+                  $buffer = $this->getLastIndent();
+                  array_pop($this->indent);
                   break;
                 case 'rdelim':
                   $buffer .= $this->rightDelimiter;
@@ -237,13 +246,9 @@ class Cleverly {
       } else {
         $buffer .= $line;
       }
-
-      if ($this->preserveIndent) {
-        array_pop($this->indent);
-      }
     }
 
-    echo $this->addIndent($buffer);
+    echo $this->applyIndent($buffer);
     array_pop($this->subs);
     fclose($handle);
   }
@@ -258,12 +263,16 @@ class Cleverly {
     $this->templateDir = $dir;
   }
 
-  private function addIndent($str) {
+  private function applyIndent($str) {
     return str_replace(
       "\n",
-      "\n" . implode($this->indent),
+      "\n" . $this->getLastIndent(),
       substr($str, 0, -1)
     ) . "\n";
+  }
+
+  private function getLastIndent() {
+    return empty($this->indent) ? '' : $this->indent[count($this->indent) - 1];
   }
 
   private function applySubs($var, $part = '') {

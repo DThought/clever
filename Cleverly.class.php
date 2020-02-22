@@ -170,7 +170,13 @@ class Cleverly {
                     $val = $this->applySubs($var[1], $var[2]);
                     ob_start();
                     $val();
-                    $buffer .= self::stripNewline(ob_get_clean());
+                    array_push($this->indent, $indent);
+
+                    $buffer .= self::stripNewline(
+                      $this->applyIndent(ob_get_clean())
+                    );
+
+                    array_pop($this->indent);
                   } elseif (preg_match(
                     self::PATTERN_FILE,
                     @$args['file'],
@@ -204,7 +210,13 @@ class Cleverly {
                       $submatches[4]
                     ));
 
-                    $buffer .= self::stripNewline(ob_get_clean());
+                    array_push($this->indent, $indent);
+
+                    $buffer .= self::stripNewline(
+                      $this->applyIndent(ob_get_clean())
+                    );
+
+                    array_pop($this->indent);
                   } else {
                     throw new BadFunctionCallException;
                   }

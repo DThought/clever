@@ -38,8 +38,7 @@ class Cleverly {
 
     $this->state = array();
     array_push($this->subs, $vars);
-    $pattern =
-        '/' . preg_quote($this->leftDelimiter, '/') . self::SUBPATTERN .
+    $pattern = '/' . preg_quote($this->leftDelimiter, '/') . self::SUBPATTERN .
         preg_quote($this->rightDelimiter, '/') . '/';
     $buffer = '';
     $indent = '';

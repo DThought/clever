@@ -239,10 +239,14 @@ class Cleverly {
                   throw new BadFunctionCallException;
               }
             } elseif ($set[self::OFFSET_VAR_NAME][0]) {
-              $buffer .= $this->applySubs(
+              array_push($this->indent, $indent);
+
+              $buffer .= $this->applyIndent($this->applySubs(
                 $set[self::OFFSET_VAR_NAME][0],
                 $set[self::OFFSET_VAR_EXTRA][0]
-              );
+              ));
+
+              array_pop($this->indent);
             } else {
               throw new BadFunctionCallException;
             }
@@ -275,11 +279,13 @@ class Cleverly {
   }
 
   private function applyIndent($str) {
+    $newline = $str[-1] == "\n";
+
     return str_replace(
       "\n",
       "\n" . $this->getLastIndent(),
-      substr($str, 0, -1)
-    ) . "\n";
+      $newline ? substr($str, 0, -1) : $str
+    ) . ($newline ? "\n" : '');
   }
 
   private function getLastIndent() {

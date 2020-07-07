@@ -17,11 +17,21 @@ class Cleverly {
   public $rightDelimiter = '}';
   protected $indent = array();
   protected $subs = array();
-  protected $templateDir = '.';
+  protected $templateDir = array('templates');
   private $state;
 
   private static function stripNewline($str) {
     return $str && $str[-1] == "\n" ? substr($str, 0, -1) : $str;
+  }
+
+  public function addTemplateDir($dir, $key = null) {
+    if (is_array($dir)) {
+      $this->templateDir = array_merge($this->templateDir, $dir);
+    } elseif (is_null($key)) {
+      $this->templateDir[] = $dir;
+    } else {
+      $this->templateDir[$key] = $dir;
+    }
   }
 
   public function display($template, $vars = array()) {
@@ -30,10 +40,17 @@ class Cleverly {
       fwrite($handle, substr($template, 7));
       fseek($handle, 0);
     } else {
-      $handle = fopen(
-        $template[0] == '/' ? $template : $this->templateDir . '/' . $template,
-        'r'
-      );
+      if ($template[0] == '/') {
+        $handle = fopen($template);
+      } else {
+        $dirs = array_values($this->templateDir);
+
+        for (
+          $handle = null, $i = 0;
+          !$handle && $i < count($dirs);
+          $handle = @fopen($dirs[$i++] . '/' . $template, 'r')
+        );
+      }
     }
 
     $this->state = array();
@@ -274,8 +291,12 @@ class Cleverly {
     return ob_get_clean();
   }
 
+  public function getTemplateDir($key = null) {
+    return is_null($key) ? $this->templateDir : $this->templateDir[$key];
+  }
+
   public function setTemplateDir($dir) {
-    $this->templateDir = $dir;
+    $this->templateDir = is_array($dir) ? $dir : array($dir);
   }
 
   private function applyIndent($str) {

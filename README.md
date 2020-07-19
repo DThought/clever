@@ -121,8 +121,8 @@ Template Directives
 Template Variables
 ------------------
 
-In general, whenever a variable is called for---whether printing it directly or
-using it as a parameter to `foreach`, `include`, or `include_php`---you should
+In general, whenever a variable is called for—whether printing it directly or
+using it as a parameter to `foreach`, `include`, or `include_php`—you should
 provide a standard variable name (a string of letters, numbers, or
 underscores), possibly with an index (to fetch a specific element in an array).
 The only exception is the *item* parameter on `foreach`, which does not permit

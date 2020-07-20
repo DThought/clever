@@ -21,7 +21,7 @@ class Cleverly {
   private $state;
 
   private static function stripNewline($str) {
-    return $str && $str[-1] == "\n" ? substr($str, 0, -1) : $str;
+    return $str && $str[-1] === "\n" ? substr($str, 0, -1) : $str;
   }
 
   public function addTemplateDir($dir, $key = null) {
@@ -35,12 +35,12 @@ class Cleverly {
   }
 
   public function display($template, $vars = array()) {
-    if (substr($template, 0, 7) == 'string:') {
+    if (substr($template, 0, 7) === 'string:') {
       $handle = tmpfile();
       fwrite($handle, substr($template, 7));
       fseek($handle, 0);
     } else {
-      if ($template[0] == '/') {
+      if ($template[0] === '/') {
         $handle = fopen($template);
       } else {
         $dirs = array_values($this->templateDir);
@@ -61,7 +61,7 @@ class Cleverly {
     $indent = '';
 
     while ($line = fgets($handle)) {
-      if ($line[-1] != "\n") {
+      if ($line[-1] !== "\n") {
         $line .= "\n";
       }
 
@@ -85,7 +85,7 @@ class Cleverly {
 
         switch (@$this->state[count($this->state) - 1]) {
           case self::TAG_FOREACH:
-            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_FOREACH) {
+            if (@$set[self::OFFSET_CLOSE_TAG][0] === self::TAG_FOREACH) {
               array_pop($this->state);
 
               if (count($this->state)) {
@@ -113,7 +113,7 @@ class Cleverly {
 
             break;
           case self::TAG_LITERAL:
-            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_LITERAL) {
+            if (@$set[self::OFFSET_CLOSE_TAG][0] === self::TAG_LITERAL) {
               array_pop($this->state);
             } else {
               $buffer .= $set[0][0];
@@ -121,7 +121,7 @@ class Cleverly {
 
             break;
           case self::TAG_PHP:
-            if (@$set[self::OFFSET_CLOSE_TAG][0] == self::TAG_PHP) {
+            if (@$set[self::OFFSET_CLOSE_TAG][0] === self::TAG_PHP) {
               array_pop($this->state);
 
               if (!count($this->state)) {
@@ -300,7 +300,7 @@ class Cleverly {
   }
 
   private function applyIndent($str) {
-    $newline = $str[-1] == "\n";
+    $newline = $str && $str[-1] === "\n";
 
     return str_replace(
       "\n",

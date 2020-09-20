@@ -319,7 +319,7 @@ class Cleverly {
         $val = $sub[$var];
 
         while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $matches)) {
-          $match = $matches[1] . $matches[2];
+          $match = @$matches[1] . @$matches[2];
 
           if (isset($val[$match])) {
             $val = $val[$match];

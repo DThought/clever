@@ -1,10 +1,12 @@
 <?
 class Cleverly {
-  const OFFSET_CLOSE_TAG = 6;
-  const OFFSET_OPEN_TAG = 2;
-  const OFFSET_OPEN_ARGS = 3;
-  const OFFSET_VAR_EXTRA = 8;
-  const OFFSET_VAR_NAME = 7;
+  const OFFSET_CLOSE_TAG = 8;
+  const OFFSET_CONTENT = 2;
+  const OFFSET_OPEN_TAG = 4;
+  const OFFSET_OPEN_ARGS = 5;
+  const OFFSET_WHITESPACE = 1;
+  const OFFSET_VAR_EXTRA = 10;
+  const OFFSET_VAR_NAME = 9;
   const PATTERN_FILE = '/^(\'(.+?)\'|\$(\w+)(.*?))$/';
   const PATTERN_VAR = '/^\$(\w+)(.*?)$/';
   const SUBPATTERN = '((\w+)((\s+(\w+)=\S+?)*)|\/(\w+)|\$(\w+)(.*?))';
@@ -20,8 +22,10 @@ class Cleverly {
   protected $templateDir = array('templates');
   private $state;
 
-  private static function stripNewline($str) {
-    return $str && $str[-1] === "\n" ? substr($str, 0, -1) : $str;
+  private static function stripNewline($line) {
+    return strlen($line) !== 0 && $line[-1] === "\n"
+      ? substr($line, 0, -1)
+      : $line;
   }
 
   public function addTemplateDir($dir, $key = null) {
@@ -34,7 +38,7 @@ class Cleverly {
     }
   }
 
-  public function display($template, $vars = array()) {
+  public function display($template, $variables = array()) {
     if (substr($template, 0, 7) === 'string:') {
       $handle = tmpfile();
       fwrite($handle, substr($template, 7));
@@ -46,28 +50,25 @@ class Cleverly {
         $dirs = array_values($this->templateDir);
 
         for (
-          $handle = null, $i = 0;
-          !$handle && $i < count($dirs);
-          $handle = @fopen($dirs[$i++] . '/' . $template, 'r')
+          $handle = null, $dir_number = 0;
+          !$handle && $dir_number < count($dirs);
+          $handle = @fopen($dirs[$dir_number++] . '/' . $template, 'r')
         );
       }
     }
 
     $this->state = array();
-    array_push($this->subs, $vars);
-    $pattern = '/' . preg_quote($this->leftDelimiter, '/') . self::SUBPATTERN .
-        preg_quote($this->rightDelimiter, '/') . '/';
+    array_push($this->subs, $variables);
+    $pattern = '/(\s*)(' . preg_quote($this->leftDelimiter, '/') .
+        self::SUBPATTERN . preg_quote($this->rightDelimiter, '/') . ')/';
     $buffer = '';
     $indent = '';
+    $newline = true;
 
     while ($line = fgets($handle)) {
       if ($line[-1] !== "\n") {
         $line .= "\n";
-      }
-
-      if ($this->preserveIndent) {
-        preg_match('/^\s*/', $line, $matches);
-        $indent = $matches[0];
+        $newline = false;
       }
 
       preg_match_all(
@@ -80,24 +81,27 @@ class Cleverly {
       $offset = 0;
 
       foreach ($sets as $set) {
-        $buffer .= substr($line, $offset, $set[0][1] - $offset);
-        $offset = $set[0][1] + strlen($set[0][0]);
+        $indent = $set[self::OFFSET_WHITESPACE][0];
+        $buffer .=
+            substr($line, $offset, $set[self::OFFSET_WHITESPACE][1] - $offset);
+        $offset = $set[self::OFFSET_CONTENT][1] +
+            strlen($set[self::OFFSET_CONTENT][0]);
 
         switch (@$this->state[count($this->state) - 1]) {
           case self::TAG_FOREACH:
             if (@$set[self::OFFSET_CLOSE_TAG][0] === self::TAG_FOREACH) {
               array_pop($this->state);
 
-              if (count($this->state)) {
-                $buffer .= $set[0][0];
+              if (count($this->state) !== 0) {
+                $buffer .= $set[self::OFFSET_CONTENT][0];
               } else {
-                foreach ($foreach_from as $val) {
+                foreach ($foreach_from as $value) {
                   $this->display('string:' . $buffer, array(
-                    $foreach_item => $val
+                    $foreach_item => $value
                   ));
                 }
 
-                $buffer = $this->getLastIndent() . $indent;
+                $buffer = '';
               }
             } else {
               switch (@$set[self::OFFSET_OPEN_TAG][0]) {
@@ -108,7 +112,7 @@ class Cleverly {
                   break;
               }
 
-              $buffer .= $set[0][0];
+              $buffer .= $set[self::OFFSET_CONTENT][0];
             }
 
             break;
@@ -116,7 +120,7 @@ class Cleverly {
             if (@$set[self::OFFSET_CLOSE_TAG][0] === self::TAG_LITERAL) {
               array_pop($this->state);
             } else {
-              $buffer .= $set[0][0];
+              $buffer .= $set[self::OFFSET_CONTENT][0];
             }
 
             break;
@@ -126,10 +130,10 @@ class Cleverly {
 
               if (!count($this->state)) {
                 eval($buffer);
-                $buffer = $this->getLastIndent() . $indent;
+                $buffer = '';
               }
             } else {
-              $buffer .= $set[0][0];
+              $buffer .= $set[self::OFFSET_CONTENT][0];
             }
 
             break;
@@ -159,10 +163,13 @@ class Cleverly {
 
               switch ($open_tag) {
                 case self::TAG_FOREACH:
-                  if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
-                    $foreach_from = $this->applySubs($var[1], $var[2]);
+                  if (
+                    preg_match(self::PATTERN_VAR, @$args['from'], $variable)
+                  ) {
+                    $foreach_from =
+                        $this->applySubs($variable[1], $variable[2]);
                   } elseif (
-                    preg_match('/^\d+$/', @$args['loop'], $var)
+                    preg_match('/^\d+$/', @$args['loop'], $variable)
                   ) {
                     $foreach_from = range(0, $args['loop'] - 1);
                   } else {
@@ -178,14 +185,16 @@ class Cleverly {
                   array_push($this->state, self::TAG_FOREACH);
                   array_push($this->indent, $this->getLastIndent() . $indent);
                   echo $this->applyIndent($buffer);
-                  $buffer = $this->getLastIndent();
+                  $buffer = '';
                   array_pop($this->indent);
                   break;
                 case 'include':
-                  if (preg_match(self::PATTERN_VAR, @$args['from'], $var)) {
-                    $val = $this->applySubs($var[1], $var[2]);
+                  if (
+                    preg_match(self::PATTERN_VAR, @$args['from'], $variable)
+                  ) {
+                    $value = $this->applySubs($variable[1], $variable[2]);
                     ob_start();
-                    $val();
+                    $value();
                     array_push($this->indent, $indent);
 
                     $buffer .= self::stripNewline(
@@ -193,11 +202,9 @@ class Cleverly {
                     );
 
                     array_pop($this->indent);
-                  } elseif (preg_match(
-                    self::PATTERN_FILE,
-                    @$args['file'],
-                    $submatches
-                  )) {
+                  } elseif (
+                    preg_match(self::PATTERN_FILE, @$args['file'], $submatches)
+                  ) {
                     array_push($this->indent, $indent);
 
                     $buffer .= self::stripNewline($this->fetch(
@@ -246,7 +253,7 @@ class Cleverly {
                   array_push($this->state, $open_tag);
                   array_push($this->indent, $indent);
                   echo $this->applyIndent($buffer);
-                  $buffer = $this->getLastIndent();
+                  $buffer = $indent;
                   array_pop($this->indent);
                   break;
                 case 'rdelim':
@@ -258,7 +265,7 @@ class Cleverly {
             } elseif ($set[self::OFFSET_VAR_NAME][0]) {
               array_push($this->indent, $indent);
 
-              $buffer .= $this->applyIndent($this->applySubs(
+              $buffer .= $this->applyIndent((string)$this->applySubs(
                 $set[self::OFFSET_VAR_NAME][0],
                 $set[self::OFFSET_VAR_EXTRA][0]
               ));
@@ -272,22 +279,23 @@ class Cleverly {
         }
       }
 
-      if ($sets) {
+      if (count($sets) !== 0) {
         $set = $sets[count($sets) - 1];
-        $buffer .= substr($line, $set[0][1] + strlen($set[0][0]));
+        $buffer .= substr($line, $set[self::OFFSET_CONTENT][1] +
+            strlen($set[self::OFFSET_CONTENT][0]));
       } else {
         $buffer .= $line;
       }
     }
 
-    echo $this->applyIndent($buffer);
+    echo $this->applyIndent($newline ? $buffer : substr($buffer, 0, -1));
     array_pop($this->subs);
     fclose($handle);
   }
 
-  public function fetch($template, $vars = array()) {
+  public function fetch($template, $variables = array()) {
     ob_start();
-    $this->display($template, $vars);
+    $this->display($template, $variables);
     return ob_get_clean();
   }
 
@@ -299,30 +307,37 @@ class Cleverly {
     $this->templateDir = is_array($dir) ? $dir : array($dir);
   }
 
-  private function applyIndent($str) {
-    $newline = $str && $str[-1] === "\n";
+  private function applyIndent($lines) {
+    if (strlen($lines) === 0) {
+      return $lines;
+    }
 
-    return str_replace(
+    $indent = $this->getLastIndent();
+    $newline = $lines[-1] === "\n";
+
+    return $indent . str_replace(
       "\n",
-      "\n" . $this->getLastIndent(),
-      $newline ? substr($str, 0, -1) : $str
+      "\n$indent",
+      $newline ? substr($lines, 0, -1) : $lines
     ) . ($newline ? "\n" : '');
   }
 
   private function getLastIndent() {
-    return empty($this->indent) ? '' : $this->indent[count($this->indent) - 1];
+    return count($this->indent) !== 0
+      ? $this->indent[count($this->indent) - 1]
+      : '';
   }
 
-  private function applySubs($var, $part = '') {
-    foreach ($this->subs as $sub) {
-      if (isset($sub[$var])) {
-        $val = $sub[$var];
+  private function applySubs($variable, $part = '') {
+    foreach ($this->subs as $substitution) {
+      if (isset($substitution[$variable])) {
+        $variable_substituted = $substitution[$variable];
 
         while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $matches)) {
           $match = @$matches[1] . @$matches[2];
 
-          if (isset($val[$match])) {
-            $val = $val[$match];
+          if (isset($variable_substituted[$match])) {
+            $variable_substituted = $variable_substituted[$match];
             $part = substr($part, strlen($matches[0]));
           } else {
             throw new OutOfBoundsException;
@@ -331,9 +346,9 @@ class Cleverly {
 
         if (strlen($part)) {
           throw new BadFunctionCallException;
-        } else {
-          return $val;
         }
+
+        return $variable_substituted;
       }
     }
 

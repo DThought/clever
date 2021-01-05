@@ -173,7 +173,9 @@ class Cleverly {
                   ) {
                     $foreach_from = range(0, $args['loop'] - 1);
                   } else {
-                    throw new BadFunctionCallException;
+                    throw new BadFunctionCallException(
+                      'FOREACH tags must contain one of FROM or LOOP'
+                    );
                   }
 
                   if (preg_match('/^\w+$/', @$args['item'])) {
@@ -216,7 +218,9 @@ class Cleverly {
 
                     array_pop($this->indent);
                   } else {
-                    throw new BadFunctionCallException;
+                    throw new BadFunctionCallException(
+                      'INCLUDE tags must contain one of FROM or FILE'
+                    );
                   }
 
                   break;
@@ -241,7 +245,9 @@ class Cleverly {
 
                     array_pop($this->indent);
                   } else {
-                    throw new BadFunctionCallException;
+                    throw new BadFunctionCallException(
+                      'INCLUDE_PHP tags must contain FILE'
+                    );
                   }
 
                   break;
@@ -260,7 +266,9 @@ class Cleverly {
                   $buffer .= $this->rightDelimiter;
                   break;
                 default:
-                  throw new BadFunctionCallException;
+                  throw new BadFunctionCallException(
+                    'Unrecognized tag ' . strtoupper($open_tag)
+                  );
               }
             } elseif ($set[self::OFFSET_VAR_NAME][0]) {
               array_push($this->indent, $indent);
@@ -272,7 +280,7 @@ class Cleverly {
 
               array_pop($this->indent);
             } else {
-              throw new BadFunctionCallException;
+              throw new BadFunctionCallException("Invalid tag format");
             }
 
             break;
@@ -330,29 +338,31 @@ class Cleverly {
 
   private function applySubs($variable, $part = '') {
     foreach ($this->subs as $substitution) {
-      if (isset($substitution[$variable])) {
+      if (array_key_exists($variable, $substitution)) {
         $variable_substituted = $substitution[$variable];
 
         while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $matches)) {
           $match = @$matches[1] . @$matches[2];
 
-          if (isset($variable_substituted[$match])) {
+          if (array_key_exists($match, $variable_substituted)) {
             $variable_substituted = $variable_substituted[$match];
             $part = substr($part, strlen($matches[0]));
           } else {
-            throw new OutOfBoundsException;
+            throw new OutOfBoundsException(
+              "Variable $variable$part not found"
+            );
           }
         }
 
         if (strlen($part)) {
-          throw new BadFunctionCallException;
+          throw new OutOfBoundsException("Variable $variable$part not found");
         }
 
         return $variable_substituted;
       }
     }
 
-    throw new OutOfBoundsException;
+    throw new OutOfBoundsException("Variable $variable not found");
   }
 }
 ?>

@@ -65,7 +65,7 @@ class Cleverly {
     $indent = '';
     $newline = true;
 
-    while ($line = fgets($handle)) {
+    while (($line = fgets($handle)) !== false) {
       if ($line[-1] !== "\n") {
         $line .= "\n";
         $newline = false;

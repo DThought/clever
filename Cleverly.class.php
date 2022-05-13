@@ -18,7 +18,7 @@ class Cleverly {
   public $preserveIndent = false;
   public $rightDelimiter = '}';
   protected $indent = array();
-  protected $subs = array();
+  protected $subtitutions = array();
   protected $templateDir = array('templates');
   private $state;
 
@@ -58,7 +58,7 @@ class Cleverly {
     }
 
     $this->state = array();
-    array_push($this->subs, $variables);
+    array_push($this->substitutions, $variables);
     $pattern = '/(\s*)(' . preg_quote($this->leftDelimiter, '/') .
         self::SUBPATTERN . preg_quote($this->rightDelimiter, '/') . ')/';
     $buffer = '';
@@ -167,7 +167,7 @@ class Cleverly {
                     preg_match(self::PATTERN_VAR, @$args['from'], $variable)
                   ) {
                     $foreach_from =
-                        $this->applySubs($variable[1], $variable[2]);
+                        $this->applySubstitutions($variable[1], $variable[2]);
                   } elseif (
                     preg_match('/^\d+$/', @$args['loop'], $variable)
                   ) {
@@ -178,12 +178,9 @@ class Cleverly {
                     );
                   }
 
-                  if (preg_match('/^\w+$/', @$args['item'])) {
-                    $foreach_item = $args['item'];
-                  } else {
-                    $foreach_item = '';
-                  }
-
+                  $foreach_item = preg_match('/^\w+$/', @$args['item'])
+                    ? $args['item']
+                    : '';
                   array_push($this->state, self::TAG_FOREACH);
                   array_push($this->indent, $this->getLastIndent() . $indent);
                   echo $this->applyIndent($buffer);
@@ -194,7 +191,8 @@ class Cleverly {
                   if (
                     preg_match(self::PATTERN_VAR, @$args['from'], $variable)
                   ) {
-                    $value = $this->applySubs($variable[1], $variable[2]);
+                    $value =
+                        $this->applySubstitutions($variable[1], $variable[2]);
                     ob_start();
                     $value();
                     array_push($this->indent, $indent);
@@ -210,7 +208,7 @@ class Cleverly {
                     array_push($this->indent, $indent);
 
                     $buffer .= self::stripNewline($this->fetch(
-                      $submatches[2] ?: $this->applySubs(
+                      $submatches[2] ?: $this->applySubstitutions(
                         $submatches[3],
                         $submatches[4]
                       )
@@ -232,7 +230,7 @@ class Cleverly {
                   )) {
                     ob_start();
 
-                    include($submatches[2] ?: $this->applySubs(
+                    include($submatches[2] ?: $this->applySubstitutions(
                       $submatches[3],
                       $submatches[4]
                     ));
@@ -273,7 +271,7 @@ class Cleverly {
             } elseif ($set[self::OFFSET_VAR_NAME][0]) {
               array_push($this->indent, $indent);
 
-              $buffer .= $this->applyIndent((string)$this->applySubs(
+              $buffer .= $this->applyIndent((string)$this->applySubstitutions(
                 $set[self::OFFSET_VAR_NAME][0],
                 $set[self::OFFSET_VAR_EXTRA][0]
               ));
@@ -297,7 +295,7 @@ class Cleverly {
     }
 
     echo $this->applyIndent($newline ? $buffer : substr($buffer, 0, -1));
-    array_pop($this->subs);
+    array_pop($this->substitutions);
     fclose($handle);
   }
 
@@ -336,17 +334,22 @@ class Cleverly {
       : '';
   }
 
-  private function applySubs($variable, $part = '') {
-    foreach ($this->subs as $substitution) {
+  private function applySubstitutions($variable, $part) {
+    foreach ($this->substitutions as $substitution) {
       if (array_key_exists($variable, $substitution)) {
         $variable_substituted = $substitution[$variable];
 
-        while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $matches)) {
-          $match = @$matches[1] . @$matches[2];
+        while (preg_match('/\.(\w+)|\[(\w+)\]/', $part, $indices)) {
+          $index = @$indices[1] . @$indices[2];
 
-          if (array_key_exists($match, $variable_substituted)) {
-            $variable_substituted = $variable_substituted[$match];
-            $part = substr($part, strlen($matches[0]));
+          if (preg_match(self::PATTERN_VAR, $index, $subvariable)) {
+            $index =
+                $this->applySubstitutions($subvariable[1], $subvariable[2]);
+          }
+
+          if (array_key_exists($index, $variable_substituted)) {
+            $variable_substituted = $variable_substituted[$index];
+            $part = substr($part, strlen($indices[0]));
           } else {
             throw new OutOfBoundsException(
               "Variable $variable$part not found"

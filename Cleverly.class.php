@@ -18,7 +18,7 @@ class Cleverly {
   public $preserveIndent = false;
   public $rightDelimiter = '}';
   protected $indent = array();
-  protected $subtitutions = array();
+  protected $substitutions = array();
   protected $templateDir = array('templates');
   private $state;
 
@@ -112,7 +112,7 @@ class Cleverly {
                   break;
               }
 
-              $buffer .= $set[self::OFFSET_CONTENT][0];
+              $buffer .= $set[0][0];
             }
 
             break;
@@ -203,14 +203,15 @@ class Cleverly {
 
                     array_pop($this->indent);
                   } elseif (
-                    preg_match(self::PATTERN_FILE, @$args['file'], $submatches)
+                    preg_match(self::PATTERN_FILE, @$args['file'], $file)
                   ) {
                     array_push($this->indent, $indent);
 
-                    $buffer .= self::stripNewline($this->fetch(
-                      $submatches[2] ?: $this->applySubstitutions(
-                        $submatches[3],
-                        $submatches[4]
+                    $buffer .= self::stripNewline(
+                      $this->fetch(
+                        $file[2] ?: $this->applySubstitutions(
+                          $file[3],
+                          $file[4]
                       )
                     ));
 
@@ -223,16 +224,12 @@ class Cleverly {
 
                   break;
                 case 'include_php':
-                  if (preg_match(
-                    self::PATTERN_FILE,
-                    @$args['file'],
-                    $submatches
-                  )) {
+                  if (preg_match(self::PATTERN_FILE, @$args['file'], $file)) {
                     ob_start();
 
-                    include($submatches[2] ?: $this->applySubstitutions(
-                      $submatches[3],
-                      $submatches[4]
+                    include($file[2] ?: $this->applySubstitutions(
+                      $file[3],
+                      $file[4]
                     ));
 
                     array_push($this->indent, $indent);

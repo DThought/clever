@@ -31,7 +31,7 @@ class Cleverly {
   public function addTemplateDir($dir, $key = null) {
     if (is_array($dir)) {
       $this->templateDir = array_merge($this->templateDir, $dir);
-    } elseif (is_null($key)) {
+    } else if (is_null($key)) {
       $this->templateDir[] = $dir;
     } else {
       $this->templateDir[$key] = $dir;
@@ -101,6 +101,7 @@ class Cleverly {
                   ));
                 }
 
+                array_pop($this->indent);
                 $buffer = '';
               }
             } else {
@@ -182,10 +183,9 @@ class Cleverly {
                     ? $args['item']
                     : '';
                   array_push($this->state, self::TAG_FOREACH);
-                  array_push($this->indent, $this->getLastIndent() . $indent);
                   echo $this->applyIndent($buffer);
+                  array_push($this->indent, $this->getLastIndent() . $indent);
                   $buffer = '';
-                  array_pop($this->indent);
                   break;
                 case 'include':
                   if (
@@ -252,10 +252,8 @@ class Cleverly {
                 case self::TAG_LITERAL:
                 case self::TAG_PHP:
                   array_push($this->state, $open_tag);
-                  array_push($this->indent, $indent);
                   echo $this->applyIndent($buffer);
                   $buffer = $indent;
-                  array_pop($this->indent);
                   break;
                 case 'rdelim':
                   $buffer .= $this->rightDelimiter;
@@ -311,7 +309,7 @@ class Cleverly {
   }
 
   private function applyIndent($lines) {
-    if (strlen($lines) === 0) {
+    if (!$this->preserveIndent || strlen($lines) === 0) {
       return $lines;
     }
 
@@ -344,14 +342,20 @@ class Cleverly {
                 $this->applySubstitutions($subvariable[1], $subvariable[2]);
           }
 
-          if (array_key_exists($index, $variable_substituted)) {
+          if (
+            is_object($variable_substituted) &&
+                property_exists($variable_substituted, $index)
+          ) {
+            $variable_substituted = $variable_substituted->$index;
+          } elseif (array_key_exists($index, $variable_substituted)) {
             $variable_substituted = $variable_substituted[$index];
-            $part = substr($part, strlen($indices[0]));
           } else {
             throw new OutOfBoundsException(
               "Variable $variable$part not found"
             );
           }
+
+          $part = substr($part, strlen($indices[0]));
         }
 
         if (strlen($part)) {

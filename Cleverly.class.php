@@ -239,9 +239,12 @@ class Cleverly {
                   if (
                     preg_match($this->PATTERN_VAR, @$args['from'], $variable)
                   ) {
-                    $foreach_from =
-                        $this->applySubstitutions($variable[1], $variable[2]);
-                  } elseif (
+                    $foreach_from = $this->applySubstitutions(
+                      $variable[1],
+                      $variable[2],
+                      false
+                    );
+                  } else if (
                     preg_match('/^\d+$/', @$args['loop'], $variable)
                   ) {
                     $foreach_from = range(0, $args['loop'] - 1);
@@ -263,8 +266,11 @@ class Cleverly {
                   if (
                     preg_match($this->PATTERN_VAR, @$args['from'], $variable)
                   ) {
-                    $value =
-                        $this->applySubstitutions($variable[1], $variable[2]);
+                    $value = $this->applySubstitutions(
+                      $variable[1],
+                      $variable[2],
+                      false
+                    );
                     ob_start();
                     $value();
                     array_push($this->indent, $indent);
@@ -274,7 +280,7 @@ class Cleverly {
                     );
 
                     array_pop($this->indent);
-                  } elseif (
+                  } else if (
                     preg_match($this->PATTERN_FILE, @$args['file'], $file)
                   ) {
                     array_push($this->indent, $indent);
@@ -284,7 +290,8 @@ class Cleverly {
                         @$file[self::OFFSET_FILE_STRING] ?:
                             $this->applySubstitutions(
                           $file[self::OFFSET_FILE_VAR_NAME],
-                          $file[self::OFFSET_FILE_VAR_EXTRA]
+                          $file[self::OFFSET_FILE_VAR_EXTRA],
+                          false
                         )
                       )
                     );
@@ -305,7 +312,8 @@ class Cleverly {
                       @$file[self::OFFSET_FILE_STRING] ?:
                           $this->applySubstitutions(
                         $file[self::OFFSET_FILE_VAR_NAME],
-                        $file[self::OFFSET_FILE_VAR_EXTRA]
+                        $file[self::OFFSET_FILE_VAR_EXTRA],
+                        false
                       )
                     );
 
@@ -340,13 +348,14 @@ class Cleverly {
                     'Unrecognized tag ' . strtoupper($open_tag)
                   );
               }
-            } elseif ($set[self::OFFSET_IF_LEFT][0]) {
+            } else if ($set[self::OFFSET_IF_LEFT][0]) {
               $if_left = @$set[self::OFFSET_IF_LEFT_STRING][0] ?: (
                 @$set[self::OFFSET_IF_LEFT_NUMBER][0]
                   ? (float)$set[self::OFFSET_IF_LEFT_NUMBER][0]
                   : $this->applySubstitutions(
                     $set[self::OFFSET_IF_LEFT_VAR_NAME][0],
-                    $set[self::OFFSET_IF_LEFT_VAR_EXTRA][0]
+                    $set[self::OFFSET_IF_LEFT_VAR_EXTRA][0],
+                    true
                   )
               );
 
@@ -356,7 +365,8 @@ class Cleverly {
                     ? (float)$set[self::OFFSET_IF_RIGHT_NUMBER][0]
                     : $this->applySubstitutions(
                       $set[self::OFFSET_IF_RIGHT_VAR_NAME][0],
-                      $set[self::OFFSET_IF_RIGHT_VAR_EXTRA][0]
+                      $set[self::OFFSET_IF_RIGHT_VAR_EXTRA][0],
+                      true
                     )
                 );
 
@@ -405,12 +415,13 @@ class Cleverly {
               echo $this->applyIndent($buffer);
               array_push($this->indent, $this->getLastIndent() . $indent);
               $buffer = '';
-            } elseif ($set[self::OFFSET_VAR_NAME][0]) {
+            } else if ($set[self::OFFSET_VAR_NAME][0]) {
               array_push($this->indent, $indent);
 
               $buffer .= $this->applyIndent((string)$this->applySubstitutions(
                 $set[self::OFFSET_VAR_NAME][0],
-                $set[self::OFFSET_VAR_EXTRA][0]
+                $set[self::OFFSET_VAR_EXTRA][0],
+                false
               ));
 
               array_pop($this->indent);
@@ -474,7 +485,7 @@ class Cleverly {
       : '';
   }
 
-  private function applySubstitutions($variable, $part) {
+  private function applySubstitutions($variable, $part, $nullable) {
     foreach ($this->substitutions as $substitution) {
       if (array_key_exists($variable, $substitution)) {
         $variable_substituted = $substitution[$variable];
@@ -483,8 +494,11 @@ class Cleverly {
           $index = @$indices[1] . @$indices[2];
 
           if (preg_match($this->PATTERN_VAR, $index, $subvariable)) {
-            $index =
-                $this->applySubstitutions($subvariable[1], $subvariable[2]);
+            $index = $this->applySubstitutions(
+              $subvariable[1],
+              $subvariable[2],
+              $nullable
+            );
           }
 
           if (
@@ -492,8 +506,13 @@ class Cleverly {
                 property_exists($variable_substituted, $index)
           ) {
             $variable_substituted = $variable_substituted->$index;
-          } elseif (array_key_exists($index, $variable_substituted)) {
+          } else if (
+            is_array($variable_substituted) &&
+                array_key_exists($index, $variable_substituted)
+          ) {
             $variable_substituted = $variable_substituted[$index];
+          } else if ($nullable) {
+            return null;
           } else {
             throw new OutOfBoundsException(
               "Variable $variable$part not found"

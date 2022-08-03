@@ -1,11 +1,8 @@
-Cleverly
-========
+# Cleverly
 
 A tiny, fast, and easy HTML template engine
 
-
-Installation
-------------
+## Installation
 
 The easiest way to use Cleverly is simply to clone the repository (such as with
 a [git submodule](https://git-scm.com/docs/git-submodule)) and
@@ -13,9 +10,7 @@ a [git submodule](https://git-scm.com/docs/git-submodule)) and
 [require](https://www.php.net/manual/en/function.require.php) it in your code.
 No fancy package managers here.
 
-
-Quick Start
------------
+## Quick Start
 
 index.php:
 
@@ -43,96 +38,111 @@ single-file alternative to Smarty.) As such, the extensive [Smarty 2 usage
 documentation](https://www.smarty.net/docsv2/en/) is a good reference.
 
 Check out [Hell Quotes](https://github.com/deeptoaster/hell-quotes) for an
-example of a dynamic project that uses Cleverly.
+example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/opcode-table) for an example of a statically generated project, both using Cleverly.
 
+## Template Directives
 
-Template Directives
--------------------
+- {**foreach** from=_from_ item=_item_} ... {/**foreach**}
 
-*   {**foreach** from=*from* item=*item*} ... {/**foreach**}
+  {**foreach** loop=_loop_ item=_item_} ... {/**foreach**}
 
-    {**foreach** loop=*loop* item=*item*} ... {/**foreach**}
+  Either loops over an array of data (_from_) or just loops a certain number
+  of times (_loop_). The current value being looped over is stored into a
+  variable called _item_. This directive corresponds to both
+  [`foreach`](https://www.smarty.net/docsv2/en/language.function.foreach.tpl)
+  and
+  [`section`](https://www.smarty.net/docsv2/en/language.function.section.tpl)
+  in Smarty 2. The content between the opening and closing `foreach` tags is
+  outputted once for each iteration of the loop.
 
-    Either loops over an array of data (*from*) or just loops a certain number
-    of times (*loop*). The current value being looped over is stored into a
-    variable called *item*. This directive corresponds to both
-    [`foreach`](https://www.smarty.net/docsv2/en/language.function.foreach.tpl)
-    and
-    [`section`](https://www.smarty.net/docsv2/en/language.function.section.tpl)
-    in Smarty 2. The content between the opening and closing `foreach` tags is
-    outputted once for each iteration of the loop.
+- {**if** _a_} ... {/**if**}
 
-*   {**include** file=*file*}
+  {**if** _a_ _op_ _b_} ... {/**if**}
 
-    {**include** from=*from*}
+  Only outputs the content between the opening and closing `if` tags if _a_ is truthy (if _b_ is not provided) or the comparison between _a_ and _b_ is true (if _b_ is provided). _op_ should be one of the following operations:
 
-    Either includes another template (*file*) or the result of a function
-    stored to a variable (*from*). If *file* is provided, it should either be a
-    plain string delimited by single quotes or a variable containing the path
-    to include. This directive corresponds to
-    [`include`](https://www.smarty.net/docsv2/en/language.function.include.tpl)
-    in Smarty 2, as well as its concept of plugins. All variables and
-    configurations that apply to the current template also apply to the
-    included template.
+  - `eq` or `==`: equals
+  - `neq` or `!=`: not equals
+  - `gt` or `>`: greater than
+  - `lt` or `<`: less than
+  - `gte` or `ge` or `>=`: greater than or equal
+  - `lte` or `le` or `<=`: less than or equal
+  - `===`: check for identity
 
-*   {**include_php** file=*file*}
+  This directive corresponds to [`if`](https://www.smarty.net/docsv2/en/language.function.if.tpl) in Smarty 2.
 
-    Includes the output of a PHP script. *file* should either be a plain string
-    delimited by single quotes or a variable containing the path to include.
-    This directive corresponds to
-    [`include_php`](https://www.smarty.net/docs/en/language.function.include.php.tpl)
-    in Smarty 2.
+- {**include** file=_file_}
 
-*   {**ldelim**}
+  {**include** from=_from_}
 
-    Outputs the left delimiter (the value of `leftDelimiter`, which defaults to
-    `"{"`). This directive corresponds to
-    [`ldelim`](https://www.smarty.net/docs/en/language.function.ldelim.tpl) in
-    Smarty 2. This is basically a way to escape the template delimiter in the
-    output.
+  Either includes another template (_file_) or the result of a function
+  stored to a variable (_from_). If _file_ is provided, it should either be a
+  plain string delimited by single quotes or a variable containing the path
+  to include. This directive corresponds to
+  [`include`](https://www.smarty.net/docsv2/en/language.function.include.tpl)
+  in Smarty 2, as well as its concept of plugins. All variables and
+  configurations that apply to the current template also apply to the
+  included template.
 
-*   {**literal**} ... {/**literal**}
+- {**include_php** file=_file_}
 
-    Outputs the content between the opening and closing `literal` tags without
-    any further processing. This directive corresponds to
-    [`literal`](https://www.smarty.net/docs/en/language.function.literal.tpl)
-    in Smarty 2.
+  Includes the output of a PHP script. _file_ should either be a plain string
+  delimited by single quotes or a variable containing the path to include.
+  This directive corresponds to
+  [`include_php`](https://www.smarty.net/docs/en/language.function.include.php.tpl)
+  in Smarty 2.
 
-*   {**php**} ... {/**php**}
+- {**ldelim**}
 
-    Executes the content between the opening and closing `php` tags as PHP
-    code. This directive corresponds to
-    [`php`](https://www.smarty.net/docs/en/language.function.php.tpl) in Smarty
-    2.
+  Outputs the left delimiter (the value of `leftDelimiter`, which defaults to
+  `"{"`). This directive corresponds to
+  [`ldelim`](https://www.smarty.net/docs/en/language.function.ldelim.tpl) in
+  Smarty 2. This is basically a way to escape the template delimiter in the
+  output.
 
-*   {**rdelim**}
+- {**literal**} ... {/**literal**}
 
-    Outputs the right delimiter (the value of `rightDelimiter`, which defaults
-    to `"}"`). This directive corresponds to
-    [`rdelim`](https://www.smarty.net/docs/en/language.function.rdelim.tpl) in
-    Smarty 2. This is basically a way to escape the template delimiter in the
-    output.
+  Outputs the content between the opening and closing `literal` tags without
+  any further processing. This directive corresponds to
+  [`literal`](https://www.smarty.net/docs/en/language.function.literal.tpl)
+  in Smarty 2.
 
-*   {*$var*}
+- {**php**} ... {/**php**}
 
-    Outputs the contents of variable *$var*.
+  Executes the content between the opening and closing `php` tags as PHP
+  code. This directive corresponds to
+  [`php`](https://www.smarty.net/docs/en/language.function.php.tpl) in Smarty 2.
 
+- {**rdelim**}
 
-Template Variables
-------------------
+  Outputs the right delimiter (the value of `rightDelimiter`, which defaults
+  to `"}"`). This directive corresponds to
+  [`rdelim`](https://www.smarty.net/docs/en/language.function.rdelim.tpl) in
+  Smarty 2. This is basically a way to escape the template delimiter in the
+  output.
+
+- {_\$var_}
+
+  Outputs the contents of variable _\$var_.
+
+## Template Variables
 
 In general, whenever a variable is called for—whether printing it directly or
 using it as a parameter to `foreach`, `include`, or `include_php`—you should
 provide a standard variable name (a string of letters, numbers, or
 underscores), possibly with an index (to fetch a specific element in an array).
-The only exception is the *item* parameter on `foreach`, which does not permit
+The only exception is the _item_ parameter on `foreach`, which does not permit
 an index.
 
-The following are all valid invocations, assuming the variables are defined:
+The following are all valid invocations:
 
     {foreach from=array_var item=element_var} ... {/foreach}
     {foreach from=array_of_arrays_var.key item=element_var} ... {/foreach}
     {foreach from=array_of_arrays_var[42] item=element_var} ... {/foreach}
+    {if $variable}
+    {if $first_variable eq 'expected value'}
+    {if $first_variable neq $second_variable}
+    {if $first_variable gt 6.02e23}
     {include file='file_name.tpl'}
     {include file=string_var}
     {include file=array_of_strings_var.key}
@@ -145,16 +155,14 @@ The following are all valid invocations, assuming the variables are defined:
     {include_php file=array_of_strings_var.key}
     {include_php file=array_of_strings_var[42]}
     {$string_var}
-    {$array_of_strings_var.key}
-    {$array_of_strings_var[42]}
+    {$array_or_object_of_strings_var.key}
+    {$array_or_object_of_strings_var[42]}
 
 Variables are defined in one of two ways: they are either passed in through the
-*$vars* array when calling `display` or `fetch` or assigned to *item* as part
+_\$vars_ array when calling `display` or `fetch` or assigned to _item_ as part
 of a `foreach` loop.
 
-
-Plugins
--------
+## Plugins
 
 Plugins are a special type of template variable assigned an [anonymous
 function](https://www.php.net/manual/en/functions.anonymous.php) and used with
@@ -184,75 +192,71 @@ templates/index.tpl:
       </body>
     </html>
 
+## Class Methods
 
-Class Methods
--------------
+- **addTemplateDir**(_\$dir_, _\$key=null_)
 
-*   **addTemplateDir**(*$dir*, *$key=null*)
+  Adds one (if _\$dir_ is a string) or more (if _\$dir_ is an array) paths to
+  the list of template directories. If _\$key_ is provided, it is associated
+  with a single _\$dir_ for the purposes of the `getTemplateDir` method.
+  Similarly, if _\$dir_ is an associative array, each key is associated with
+  each path provided. This method corresponds to
+  [`addTemplateDir`](https://www.smarty.net/docs/en/api.add.template.dir.tpl)
+  in Smarty 3.
 
-    Adds one (if *$dir* is a string) or more (if *$dir* is an array) paths to
-    the list of template directories. If *$key* is provided, it is associated
-    with a single *$dir* for the purposes of the `getTemplateDir` method.
-    Similarly, if *$dir* is an associative array, each key is associated with
-    each path provided. This method corresponds to
-    [`addTemplateDir`](https://www.smarty.net/docs/en/api.add.template.dir.tpl)
-    in Smarty 3.
+- **display**(_\$template_, _\$vars=array()_)
 
-*   **display**(*$template*, *$vars=array()*)
+  Displays the output of the template _\$template_. If _\$template_ starts with
+  the special protocol `"string:"`, the remainder of _\$template_ is treated
+  as the contents of the template to import. Otherwise, it treats _\$template_
+  as a path (either local or remote) to the template to use. Keys in the
+  optional associative array _\$vars_ provides a list of variable names and
+  values (as key--value pairs) which can be used in the template (or any
+  included templates). This method corresponds to
+  [`display`](https://www.smarty.net/docs/en/api.display.tpl) in Smarty 3.
 
-    Displays the output of the template *$template*. If *$template* starts with
-    the special protocol `"string:"`, the remainder of *$template* is treated
-    as the contents of the template to import. Otherwise, it treats *$template*
-    as a path (either local or remote) to the template to use. Keys in the
-    optional associative array *$vars* provides a list of variable names and
-    values (as key--value pairs) which can be used in the template (or any
-    included templates). This method corresponds to
-    [`display`](https://www.smarty.net/docs/en/api.display.tpl) in Smarty 3.
+- **fetch**(_\$template_, _\$vars=array()_)
 
-*   **fetch**(*$template*, *$vars=array()*)
+  Returns the output of the template _\$template_ as a string. If _\$template_
+  starts with the special protocol `"string:"`, the remainder of _\$template_
+  is treated as the contents of the template to import. Otherwise, it treats
+  _\$template_ as a path (either local or remote) to the template to use. Keys
+  in the optional associative array _\$vars_ provides a list of variable names
+  and values (as key--value pairs) which can be used in the template (or any
+  included templates). This method corresponds to
+  [`fetch`](https://www.smarty.net/docs/en/api.fetch.tpl) in Smarty 3.
 
-    Returns the output of the template *$template* as a string. If *$template*
-    starts with the special protocol `"string:"`, the remainder of *$template*
-    is treated as the contents of the template to import. Otherwise, it treats
-    *$template* as a path (either local or remote) to the template to use. Keys
-    in the optional associative array *$vars* provides a list of variable names
-    and values (as key--value pairs) which can be used in the template (or any
-    included templates). This method corresponds to
-    [`fetch`](https://www.smarty.net/docs/en/api.fetch.tpl) in Smarty 3.
+- **getTemplateDir**(_\$key=null)_
 
-*   **getTemplateDir**(*$key=null)*
+  Returns the list of known template directories (if _\$key_ is not provided)
+  or a single template directory associated with a key (if _\$key_ is
+  provided). This method corresponds to
+  [`getTemplateDir`](https://www.smarty.net/docs/en/api.get.template.dir.tpl)
+  in Smarty 3.
 
-    Returns the list of known template directories (if *$key* is not provided)
-    or a single template directory associated with a key (if *$key* is
-    provided). This method corresponds to
-    [`getTemplateDir`](https://www.smarty.net/docs/en/api.get.template.dir.tpl)
-    in Smarty 3.
+- **setTemplateDir**(_\$dir_)
 
-*   **setTemplateDir**(*$dir*)
+  Sets the list of known template directories to one (if _\$dir_ is a string)
+  or more (if _\$dir_ is an array) template directories. If _\$dir_ is an
+  associative array, each key is associated with each path provided for the
+  purposes of the `getTemplateDir` method. The `display` and `fetch` methods,
+  as well as the `include` directive, look for files under known template
+  directories. By default, the only template directory is ./templates. This
+  method corresponds to
+  [`setTemplateDir`](https://www.smarty.net/docs/en/api.set.template.dir.tpl)
+  in Smarty 3.
 
-    Sets the list of known template directories to one (if *$dir* is a string)
-    or more (if *$dir* is an array) template directories. If *$dir* is an
-    associative array, each key is associated with each path provided for the
-    purposes of the `getTemplateDir` method. The `display` and `fetch` methods,
-    as well as the `include` directive, look for files under known template
-    directories. By default, the only template directory is ./templates. This
-    method corresponds to
-    [`setTemplateDir`](https://www.smarty.net/docs/en/api.set.template.dir.tpl)
-    in Smarty 3.
+## Class Variables
 
+- **leftDelimiter**
 
-Class Variables
----------------
+  The left delimiter used by the template language, which defaults to `"{"`.
 
-*   **leftDelimiter**
+- **preserveIndent**
 
-    The left delimiter used by the template language, which defaults to `"{"`.
+  Whether or not to accumulate indentation in variable expansions and
+  included files. This is basically a pretty-printing toggle.
 
-*   **preserveIndent**
+- **rightDelimiter**
 
-    Whether or not to accumulate indentation in variable expansions and
-    included files. This is basically a pretty-printing toggle.
-
-*   **rightDelimiter**
-
-    The right delimiter used by the template language, which defaults to `"}"`.
+  The right delimiter used by the template language, which defaults to `"}"`.

@@ -65,7 +65,7 @@ class Cleverly {
     if (is_array($dir)) {
       $this->templateDir = array_merge($this->templateDir, $dir);
     } else if (is_null($key)) {
-      $this->templateDir[] = $dir;
+      array_push($this->templateDir, $dir);
     } else {
       $this->templateDir[$key] = $dir;
     }
@@ -486,7 +486,13 @@ class Cleverly {
   }
 
   private function applySubstitutions($variable, $part, $nullable) {
-    foreach ($this->substitutions as $substitution) {
+    for (
+      $substitution_index = count($this->substitutions) - 1;
+      $substitution_index >= 0;
+      $substitution_index--
+    ) {
+      $substitution = $this->substitutions[$substitution_index];
+
       if (array_key_exists($variable, $substitution)) {
         $variable_substituted = $substitution[$variable];
 

@@ -136,24 +136,24 @@ an index.
 
 The following are all valid invocations:
 
-    {foreach from=array_var item=element_var} ... {/foreach}
-    {foreach from=array_of_arrays_var.key item=element_var} ... {/foreach}
-    {foreach from=array_of_arrays_var[42] item=element_var} ... {/foreach}
+    {foreach from=$array_var item=element_var} ... {/foreach}
+    {foreach from=$array_of_arrays_var.key item=element_var} ... {/foreach}
+    {foreach from=$array_of_arrays_var[42] item=element_var} ... {/foreach}
     {if $variable}
     {if $first_variable eq 'expected value'}
     {if $first_variable neq $second_variable}
     {if $first_variable gt 6.02e23}
     {include file='file_name.tpl'}
-    {include file=string_var}
-    {include file=array_of_strings_var.key}
-    {include file=array_of_strings_var[42]}
-    {include from=string_var}
-    {include from=array_of_strings_var.key}
-    {include from=array_of_strings_var[42]}
+    {include file=$string_var}
+    {include file=$array_of_strings_var.key}
+    {include file=$array_of_strings_var[42]}
+    {include from=$string_var}
+    {include from=$array_of_strings_var.key}
+    {include from=$array_of_strings_var[42]}
     {include_php file='file_name.tpl'}
-    {include_php file=string_var}
-    {include_php file=array_of_strings_var.key}
-    {include_php file=array_of_strings_var[42]}
+    {include_php file=$string_var}
+    {include_php file=$array_of_strings_var.key}
+    {include_php file=$array_of_strings_var[42]}
     {$string_var}
     {$array_or_object_of_strings_var.key}
     {$array_or_object_of_strings_var[42]}

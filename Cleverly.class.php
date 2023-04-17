@@ -465,11 +465,16 @@ class Cleverly {
   }
 
   private function applyIndent($lines) {
-    if (!$this->preserveIndent || strlen($lines) === 0) {
+    if (strlen($lines) === 0) {
       return $lines;
     }
 
     $indent = $this->getLastIndent();
+
+    if (!$this->preserveIndent) {
+      return $indent . $lines;
+    }
+
     $newline = $lines[-1] === "\n";
 
     return $indent . str_replace(

@@ -38,7 +38,9 @@ single-file alternative to Smarty.) As such, the extensive [Smarty 2 usage
 documentation](https://www.smarty.net/docsv2/en/) is a good reference.
 
 Check out [Hell Quotes](https://github.com/deeptoaster/hell-quotes) for an
-example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/opcode-table) for an example of a statically generated project, both using Cleverly.
+example of a dynamic project and [Opcode
+Table](https://github.com/deeptoaster/opcode-table) for an example of a
+statically generated project, both using Cleverly.
 
 ## Template Directives
 
@@ -46,9 +48,9 @@ example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/o
 
   {**foreach** loop=_loop_ item=_item_} ... {/**foreach**}
 
-  Either loops over an array of data (_from_) or just loops a certain number
-  of times (_loop_). The current value being looped over is stored into a
-  variable called _item_. This directive corresponds to both
+  Either loops over an array of data (_from_) or just loops a certain number of
+  times (_loop_). The current value being looped over is stored into a variable
+  called _item_. This directive corresponds to both
   [`foreach`](https://www.smarty.net/docsv2/en/language.function.foreach.tpl)
   and
   [`section`](https://www.smarty.net/docsv2/en/language.function.section.tpl)
@@ -59,7 +61,9 @@ example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/o
 
   {**if** _a_ _op_ _b_} ... {/**if**}
 
-  Only outputs the content between the opening and closing `if` tags if _a_ is truthy (if _b_ is not provided) or the comparison between _a_ and _b_ is true (if _b_ is provided). _op_ should be one of the following operations:
+  Only outputs the content between the opening and closing `if` tags if _a_ is
+  truthy (if _b_ is not provided) or the comparison between _a_ and _b_ is true
+  (if _b_ is provided). _op_ should be one of the following operations:
 
   - `eq` or `==`: equals
   - `neq` or `!=`: not equals
@@ -69,26 +73,27 @@ example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/o
   - `lte` or `le` or `<=`: less than or equal
   - `===`: check for identity
 
-  This directive corresponds to [`if`](https://www.smarty.net/docsv2/en/language.function.if.tpl) in Smarty 2.
+  This directive corresponds to
+  [`if`](https://www.smarty.net/docsv2/en/language.function.if.tpl) in Smarty 2.
 
 - {**include** file=_file_}
 
   {**include** from=_from_}
 
-  Either includes another template (_file_) or the result of a function
-  stored to a variable (_from_). If _file_ is provided, it should either be a
-  plain string delimited by single quotes or a variable containing the path
-  to include. This directive corresponds to
+  Either includes another template (_file_) or the result of a function stored
+  to a variable (_from_). If _file_ is provided, it should either be a plain
+  string delimited by single quotes or a variable containing the path to
+  include. This directive corresponds to
   [`include`](https://www.smarty.net/docsv2/en/language.function.include.tpl)
   in Smarty 2, as well as its concept of plugins. All variables and
-  configurations that apply to the current template also apply to the
-  included template.
+  configurations that apply to the current template also apply to the included
+  template.
 
 - {**include_php** file=_file_}
 
   Includes the output of a PHP script. _file_ should either be a plain string
-  delimited by single quotes or a variable containing the path to include.
-  This directive corresponds to
+  delimited by single quotes or a variable containing the path to include. This
+  directive corresponds to
   [`include_php`](https://www.smarty.net/docs/en/language.function.include.php.tpl)
   in Smarty 2.
 
@@ -104,19 +109,19 @@ example of a dynamic project and [Opcode Table](https://github.com/deeptoaster/o
 
   Outputs the content between the opening and closing `literal` tags without
   any further processing. This directive corresponds to
-  [`literal`](https://www.smarty.net/docs/en/language.function.literal.tpl)
-  in Smarty 2.
+  [`literal`](https://www.smarty.net/docs/en/language.function.literal.tpl) in
+  Smarty 2.
 
 - {**php**} ... {/**php**}
 
-  Executes the content between the opening and closing `php` tags as PHP
-  code. This directive corresponds to
+  Executes the content between the opening and closing `php` tags as PHP code.
+  This directive corresponds to
   [`php`](https://www.smarty.net/docs/en/language.function.php.tpl) in Smarty 2.
 
 - {**rdelim**}
 
-  Outputs the right delimiter (the value of `rightDelimiter`, which defaults
-  to `"}"`). This directive corresponds to
+  Outputs the right delimiter (the value of `rightDelimiter`, which defaults to
+  `"}"`). This directive corresponds to
   [`rdelim`](https://www.smarty.net/docs/en/language.function.rdelim.tpl) in
   Smarty 2. This is basically a way to escape the template delimiter in the
   output.
@@ -207,12 +212,12 @@ templates/index.tpl:
 - **display**(_\$template_, _\$vars=array()_)
 
   Displays the output of the template _\$template_. If _\$template_ starts with
-  the special protocol `"string:"`, the remainder of _\$template_ is treated
-  as the contents of the template to import. Otherwise, it treats _\$template_
-  as a path (either local or remote) to the template to use. Keys in the
-  optional associative array _\$vars_ provides a list of variable names and
-  values (as key--value pairs) which can be used in the template (or any
-  included templates). This method corresponds to
+  the special protocol `"string:"`, the remainder of _\$template_ is treated as
+  the contents of the template to import. Otherwise, it treats _\$template_ as
+  a path (either local or remote) to the template to use. Keys in the optional
+  associative array _\$vars_ provides a list of variable names and values (as
+  key--value pairs) which can be used in the template (or any included
+  templates). This method corresponds to
   [`display`](https://www.smarty.net/docs/en/api.display.tpl) in Smarty 3.
 
 - **fetch**(_\$template_, _\$vars=array()_)
@@ -254,8 +259,8 @@ templates/index.tpl:
 
 - **preserveIndent**
 
-  Whether or not to accumulate indentation in variable expansions and
-  included files. This is basically a pretty-printing toggle.
+  Whether or not to accumulate indentation in variable expansions and included
+  files. This is basically a pretty-printing toggle.
 
 - **rightDelimiter**
 
